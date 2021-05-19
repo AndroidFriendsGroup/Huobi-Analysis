@@ -3,6 +3,7 @@ buildscript {
     repositories {
         google()
         mavenCentral()
+        maven { url 'https://s01.oss.sonatype.org/content/repositories/snapshots' } // snapshot仓库（如果需要snapshot依赖，请配置该maven）
     }
     dependencies {
         classpath "com.android.tools.build:gradle:4.2.0"
@@ -16,7 +17,7 @@ allprojects {
     repositories {
         google()
         mavenCentral()
-        jcenter() // Warning: this repository is going to shut down soon
+        maven { url 'https://s01.oss.sonatype.org/content/repositories/snapshots' } // snapshot仓库（如果需要snapshot依赖，请配置该maven）
     }
 }
 
