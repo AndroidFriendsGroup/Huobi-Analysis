@@ -1,3 +1,16 @@
 <resources>
     <string name="app_name">Huobi-Analysis</string>
+
+
+    <string name="lib_time_level1">刚刚</string>
+    <string name="lib_time_level2">%s分钟前</string>
+    <string name="lib_time_level3">昨天</string>
+
+    <string name="lib_time_year">年</string>
+    <string name="lib_time_month">月</string>
+    <string name="lib_time_week">周</string>
+    <string name="lib_time_day">天</string>
+    <string name="lib_time_hour">小时</string>
+    <string name="lib_time_minute">分钟</string>
+    <string name="lib_time_second">秒</string>
 </resources>

@@ -42,7 +42,8 @@ public enum UserManager {
         RxHelper.runOnBackground(data -> save());
     }
 
-    public void updateUser(UserInfo userInfo){
+
+    public void updateUser(UserInfo userInfo) {
 
     }
 }
