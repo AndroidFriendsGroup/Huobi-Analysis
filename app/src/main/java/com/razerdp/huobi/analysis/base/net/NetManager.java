@@ -20,11 +20,9 @@ import java.util.concurrent.TimeUnit;
  */
 public enum NetManager {
     INSTANCE;
+    String[] apis = {"api.huobi.pro", "api-aws.huobi.pro", "api.huobi.de.com"};
 
-    String api1 = "api.huobi.pro";
-    String api2 = "api-aws.huobi.pro";
-
-    String curApi = api1;
+    String curApi = apis[2];
 
     @SuppressLint("CheckResult")
     public void init() {
@@ -39,10 +37,17 @@ public enum NetManager {
         RxHelper.runOnBackground(new RxTaskCall<String>() {
             @Override
             public String doInBackground() {
-                int delay1 = pingInternal(api1);
-                int delay2 = pingInternal(api2);
-                HLog.i("net_ping", "delay for " + api1 + " is " + delay1, "delay for " + api2 + " is " + delay2);
-                return Math.min(delay1, delay2) == delay1 ? api1 : api2;
+                int delay = Integer.MAX_VALUE;
+                String result = apis[2];
+                for (String api : apis) {
+                    int curDelay = pingInternal(api);
+                    HLog.i("net_ping", "delay for " + api + " is " + curDelay);
+                    if (curDelay > 0 && curDelay <= delay) {
+                        delay = curDelay;
+                        result = api;
+                    }
+                }
+                return result;
             }
 
             @Override
