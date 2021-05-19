@@ -3,6 +3,8 @@ package com.razerdp.huobi.analysis.base;
 import android.app.Application;
 import android.content.Context;
 
+import com.razerdp.huobi.analysis.base.net.NetManager;
+
 /**
  * Created by 大灯泡 on 2018/12/4.
  */
@@ -16,5 +18,6 @@ public class HuobiAnalysisApp extends Application {
     @Override
     public void onCreate() {
         super.onCreate();
+        NetManager.INSTANCE.init();
     }
 }

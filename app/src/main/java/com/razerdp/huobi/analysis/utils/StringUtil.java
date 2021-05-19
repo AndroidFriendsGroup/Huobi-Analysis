@@ -12,7 +12,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 
-
 /**
  * Created by xxqiang on 16/8/26.
  */
@@ -32,7 +31,8 @@ public class StringUtil {
 
 
     public static boolean isEmptyWithNull(String source) {
-        return source == null || TextUtils.isEmpty(source.trim()) || TextUtils.equals(source, "null") || TextUtils.equals(source, "Null") || TextUtils.equals(source, "NULL");
+        return source == null || TextUtils.isEmpty(source.trim()) || TextUtils.equals(source, "null") || TextUtils
+                .equals(source, "Null") || TextUtils.equals(source, "NULL");
     }
 
     public static String trim(String source) {
@@ -128,5 +128,11 @@ public class StringUtil {
             tempList.add(String.valueOf(c1));
         }
         return TextUtils.join(join, tempList);
+    }
+
+    public static String subApiToken(String apiToken) {
+        if (TextUtils.isEmpty(apiToken)) return apiToken;
+        int length = apiToken.length();
+        return apiToken.substring(0, length / 4) + "**** ****" + apiToken.substring(length - length / 4, length);
     }
 }
