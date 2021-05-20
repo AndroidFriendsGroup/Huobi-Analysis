@@ -55,6 +55,7 @@ public class PopupAddUser extends BasePopupWindow {
                 nickName = "****" + apiToken.substring(length - length / 4, length);
             }
             onAddUserClickListener.onAddUserClick(nickName, apiToken);
+            dismiss();
             edName.setText("");
             edToken.setText("");
         });

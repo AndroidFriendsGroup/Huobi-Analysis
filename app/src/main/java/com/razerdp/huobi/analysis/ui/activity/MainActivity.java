@@ -1,8 +1,6 @@
 package com.razerdp.huobi.analysis.ui.activity;
 
-import android.content.Intent;
 import android.view.View;
-import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -11,10 +9,14 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import com.razerdp.huobi.analysis.base.baseactivity.BaseActivity;
 import com.razerdp.huobi.analysis.base.baseadapter.BaseSimpleRecyclerViewHolder;
 import com.razerdp.huobi.analysis.base.baseadapter.SimpleRecyclerViewAdapter;
+import com.razerdp.huobi.analysis.base.interfaces.SimpleCallback;
 import com.razerdp.huobi.analysis.base.manager.UserManager;
 import com.razerdp.huobi.analysis.entity.UserInfo;
+import com.razerdp.huobi.analysis.ui.ActivityLauncher;
 import com.razerdp.huobi.analysis.ui.popup.PopupAddUser;
 import com.razerdp.huobi.analysis.ui.widget.DPRecyclerView;
+import com.razerdp.huobi.analysis.ui.widget.DPTextView;
+import com.razerdp.huobi.analysis.utils.ButterKnifeUtil;
 import com.razerdp.huobi.analysis.utils.NumberUtils;
 import com.razerdp.huobi.analysis.utils.StringUtil;
 import com.razerdp.huobi.analysis.utils.ViewUtil;
@@ -32,10 +34,6 @@ public class MainActivity extends BaseActivity {
 
     PopupAddUser popupAddUser;
 
-    @Override
-    protected void onHandleIntent(Intent intent) {
-
-    }
 
     @Override
     public int contentViewLayoutId() {
@@ -46,8 +44,10 @@ public class MainActivity extends BaseActivity {
     protected void onInitView(View decorView) {
         mAdapter = new SimpleRecyclerViewAdapter<>(this, UserManager.INSTANCE.getUsers());
         mAdapter.setHolder(Holder.class);
+        mAdapter.outher(this);
         rvContent.setLayoutManager(new LinearLayoutManager(this));
         rvContent.addFooterView(inflateFooterView());
+        mAdapter.setOnItemClickListener((v, position, data) -> ActivityLauncher.toDetail(self(), data));
         rvContent.setAdapter(mAdapter);
     }
 
@@ -67,6 +67,7 @@ public class MainActivity extends BaseActivity {
                 userInfo.apiToken = apiToken;
                 userInfo.assets = 0;
                 UserManager.INSTANCE.addUser(userInfo);
+                updateUserinfo(userInfo);
                 mAdapter.updateData(UserManager.INSTANCE.getUsers());
             });
         }
@@ -74,7 +75,20 @@ public class MainActivity extends BaseActivity {
     }
 
 
-    static class Holder extends BaseSimpleRecyclerViewHolder<UserInfo> {
+    void updateUserinfo(UserInfo userInfo) {
+        if (userInfo == null) return;
+        userInfo.isRefreshing = true;
+        mAdapter.notifyDataSetChanged();
+        UserManager.INSTANCE.updateUser(userInfo, new SimpleCallback<UserInfo>() {
+            @Override
+            public void onCall(UserInfo data) {
+                userInfo.isRefreshing = false;
+                mAdapter.notifyDataSetChanged();
+            }
+        });
+    }
+
+    class Holder extends BaseSimpleRecyclerViewHolder<UserInfo> {
 
         @BindView(R.id.tv_name)
         TextView tvName;
@@ -82,11 +96,15 @@ public class MainActivity extends BaseActivity {
         TextView tvToken;
         @BindView(R.id.tv_assets)
         TextView tvAssets;
-        @BindView(R.id.iv_arrow)
-        ImageView ivArrow;
+        @BindView(R.id.tv_no_accountid)
+        DPTextView tvNoAccountId;
+        @BindView(R.id.tv_refreshing)
+        TextView tvRefreshing;
 
         public Holder(@NonNull @NotNull View itemView) {
             super(itemView);
+            ButterKnifeUtil.bind(this, itemView);
+            tvNoAccountId.setOnClickListener(v -> updateUserinfo(getData()));
         }
 
         @Override
@@ -98,7 +116,21 @@ public class MainActivity extends BaseActivity {
         public void onBindData(UserInfo data, int position) {
             tvName.setText(data.name);
             tvToken.setText(StringUtil.subApiToken(data.apiToken));
-            tvAssets.setText(NumberUtils.formatDecimal(data.assets, 4));
+            if (data.accountId == 0) {
+                tvAssets.setVisibility(View.GONE);
+                if (data.isRefreshing) {
+                    tvNoAccountId.setVisibility(View.GONE);
+                    tvRefreshing.setVisibility(View.VISIBLE);
+                } else {
+                    tvNoAccountId.setVisibility(View.VISIBLE);
+                    tvRefreshing.setVisibility(View.GONE);
+                }
+            } else {
+                tvNoAccountId.setVisibility(View.GONE);
+                tvRefreshing.setVisibility(View.GONE);
+                tvAssets.setVisibility(View.VISIBLE);
+                tvAssets.setText(NumberUtils.formatDecimal(data.assets, 4));
+            }
         }
     }
 }

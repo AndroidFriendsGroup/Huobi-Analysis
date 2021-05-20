@@ -7,6 +7,8 @@ import android.content.Intent;
 import androidx.fragment.app.Fragment;
 
 import com.razerdp.huobi.analysis.base.baseactivity.BaseActivity;
+import com.razerdp.huobi.analysis.entity.UserInfo;
+import com.razerdp.huobi.analysis.ui.activity.DetailActivity;
 import com.razerdp.huobi.analysis.utils.ActivityUtil;
 
 import razerdp.util.log.PopupLog;
@@ -67,6 +69,11 @@ public class ActivityLauncher {
         } catch (Exception e) {
             PopupLog.e(e);
         }
+    }
+
+
+    public static void toDetail(Object from, UserInfo userInfo) {
+        start(from, DetailActivity.class, new DetailActivity.Data().setUserInfo(userInfo));
     }
 
 }

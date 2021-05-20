@@ -9,7 +9,6 @@ import android.os.Bundle;
 import android.os.Parcelable;
 import android.os.SystemClock;
 import android.text.TextUtils;
-import android.util.Pair;
 import android.view.View;
 import android.view.ViewGroup;
 
@@ -64,6 +63,10 @@ public abstract class BaseActivity<T extends BaseActivity.IntentData>
 
         onStartCreate(savedInstanceState);
         onHandleIntent(getIntent());
+        if (!onCheckIntentDataValidate(getActivityData())) {
+            finish();
+            return;
+        }
         mStatusBarConfig = new StatusBarConfig();
         onApplyStatusBarConfig(mStatusBarConfig);
         if (contentViewLayoutId() != 0) {
@@ -83,7 +86,13 @@ public abstract class BaseActivity<T extends BaseActivity.IntentData>
 
     //region ===============================abstract===============================
 
-    protected abstract void onHandleIntent(Intent intent);
+    protected void onHandleIntent(Intent intent) {
+
+    }
+
+    protected boolean onCheckIntentDataValidate(@Nullable T activityData) {
+        return true;
+    }
 
     @LayoutRes
     public abstract int contentViewLayoutId();

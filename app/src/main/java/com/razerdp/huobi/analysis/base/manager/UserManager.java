@@ -1,13 +1,23 @@
 package com.razerdp.huobi.analysis.base.manager;
 
+import androidx.annotation.Nullable;
+
+import com.razerdp.huobi.analysis.base.interfaces.SimpleCallback;
 import com.razerdp.huobi.analysis.entity.UserInfo;
+import com.razerdp.huobi.analysis.net.api.account.AccountInfo;
+import com.razerdp.huobi.analysis.net.response.account.AccountResponse;
+import com.razerdp.huobi.analysis.net.response.listener.OnResponseListener;
 import com.razerdp.huobi.analysis.utils.SharedPreferencesUtils;
 import com.razerdp.huobi.analysis.utils.ToolUtil;
 import com.razerdp.huobi.analysis.utils.gson.GsonUtil;
 import com.razerdp.huobi.analysis.utils.rx.RxHelper;
 
+import org.jetbrains.annotations.NotNull;
+
 import java.util.ArrayList;
 import java.util.List;
+
+import rxhttp.RxHttp;
 
 /**
  * Created by 大灯泡 on 2021/5/19
@@ -43,7 +53,16 @@ public enum UserManager {
     }
 
 
-    public void updateUser(UserInfo userInfo) {
+    public void updateUser(UserInfo userInfo, @Nullable SimpleCallback<UserInfo> cb) {
+        if (userInfo == null) return;
+        RxHttp.get(AccountInfo.accountInfoApi(), userInfo.apiToken)
+                .asClass(AccountResponse.class)
+                .subscribe(new OnResponseListener<AccountResponse>() {
+                    @Override
+                    public void onSuccess(@NotNull AccountResponse accountResponse) {
+
+                    }
+                });
 
     }
 }

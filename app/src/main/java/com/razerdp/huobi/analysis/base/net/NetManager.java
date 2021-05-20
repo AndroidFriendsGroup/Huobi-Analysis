@@ -2,6 +2,7 @@ package com.razerdp.huobi.analysis.base.net;
 
 import android.annotation.SuppressLint;
 
+import com.razerdp.huobi.analysis.base.net.interceptor.HttpLoggingInterceptor;
 import com.razerdp.huobi.analysis.utils.StringUtil;
 import com.razerdp.huobi.analysis.utils.TimeUtil;
 import com.razerdp.huobi.analysis.utils.log.HLog;
@@ -21,12 +22,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import okhttp3.RequestBody;
+import okhttp3.OkHttpClient;
+import rxhttp.RxHttp;
 import rxhttp.wrapper.annotation.DefaultDomain;
 import rxhttp.wrapper.annotation.Param;
 import rxhttp.wrapper.entity.KeyValuePair;
+import rxhttp.wrapper.param.AbstractParam;
 import rxhttp.wrapper.param.FormParam;
 import rxhttp.wrapper.param.Method;
+import rxhttp.wrapper.param.NoBodyParam;
+import rxhttp.wrapper.ssl.HttpsUtils;
 
 /**
  * Created by 大灯泡 on 2021/5/19
@@ -38,7 +43,7 @@ public enum NetManager {
     String[] apis = {"api.huobi.pro", "api-aws.huobi.pro", "api.huobi.de.com"};
 
 
-    static class Url {
+    public static class Url {
         @DefaultDomain
         public static String baseUrl = INSTANCE.api();
     }
@@ -47,12 +52,30 @@ public enum NetManager {
 
     @SuppressLint("CheckResult")
     public void init() {
+        RxHttp.init(getDefaultOkHttpClient());
         ping();
     }
 
-    public String api() {
+    private static OkHttpClient getDefaultOkHttpClient() {
+        HttpsUtils.SSLParams sslParams = HttpsUtils.getSslSocketFactory();
+        return new OkHttpClient.Builder()
+                .connectTimeout(10, TimeUnit.SECONDS)
+                .readTimeout(10, TimeUnit.SECONDS)
+                .writeTimeout(10, TimeUnit.SECONDS)
+                .sslSocketFactory(sslParams.sSLSocketFactory, sslParams.trustManager)
+                .hostnameVerifier((hostname, session) -> true)
+                .addInterceptor(new HttpLoggingInterceptor())
+                .build();
+    }
+
+    public String simpleApi() {
         return curApi;
     }
+
+    public String api() {
+        return String.format("https://%s", simpleApi());
+    }
+
 
     void ping() {
         RxHelper.runOnBackground(new RxTaskCall<String>() {
@@ -75,7 +98,7 @@ public enum NetManager {
             public void onResult(String result) {
                 HLog.i("net_ping", "set curApi = " + result);
                 curApi = result;
-                Url.baseUrl = curApi;
+                Url.baseUrl = api();
                 RxHelper.delay(1, TimeUnit.MINUTES, data -> ping());
             }
         });
@@ -115,37 +138,54 @@ public enum NetManager {
 
 
     // https://github.com/liujingxing/rxhttp/wiki/%E9%AB%98%E7%BA%A7%E5%8A%9F%E8%83%BD#%E8%87%AA%E5%AE%9A%E4%B9%89Param
-    static abstract class BaseFormParam extends FormParam {
-        String apiKey;
+    interface BaseParam {
+        String getApiKey();
 
-        public BaseFormParam(String url, Method method, String apiKey) {
-            super(url, method);
+        String getCurApi();
+    }
+
+
+    @Param(methodName = "post")
+    public static class PostSignParam extends FormParam implements BaseParam {
+        String apiKey;
+        String curApi;
+
+        public PostSignParam(String url, String apiKey) {
+            super(url, Method.POST);
             this.apiKey = apiKey;
+            this.curApi = INSTANCE.simpleApi();
         }
 
+        @Override
         public String getApiKey() {
             return apiKey;
         }
-    }
 
-    @Param(methodName = "post")
-    static class PostSignParam extends BaseFormParam {
-
-        public PostSignParam(String url, String apiKey) {
-            super(url, Method.POST, apiKey);
+        @Override
+        public String getCurApi() {
+            return curApi;
         }
     }
 
     @Param(methodName = "get")
-    static class GetSignParam extends BaseFormParam {
+    public static class GetSignParam extends NoBodyParam implements BaseParam {
+        String apiKey;
+        String curApi;
 
         public GetSignParam(String url, String apiKey) {
-            super(url, Method.GET, apiKey);
+            super(url, Method.GET);
+            this.apiKey = apiKey;
+            this.curApi = INSTANCE.simpleApi();
         }
 
         @Override
-        public RequestBody getRequestBody() {
-            return super.getRequestBody();
+        public String getApiKey() {
+            return apiKey;
+        }
+
+        @Override
+        public String getCurApi() {
+            return curApi;
         }
     }
 
@@ -154,10 +194,11 @@ public enum NetManager {
         public static final String HUOBI_KEY_TIME = "Timestamp";
         public static final String HUOBI_KEY_ACCESSKEY = "AccessKeyId";
 
-        public static void sign(BaseFormParam param) {
+        public static void sign(BaseParam param) {
+            AbstractParam requestParam = (AbstractParam) param;
             StringBuilder builder = new StringBuilder();
-            builder.append(param.getMethod().toString()).append('\n')
-                    .append(INSTANCE.api()).append('\n')
+            builder.append(requestParam.getMethod().toString()).append('\n')
+                    .append(param.getApiHost()).append('\n')
                     .append(param.getSimpleUrl()).append('\n');
             List<KeyValuePair> queryParams = param.getQueryParam();
             Map<String, Object> paramsMap = new HashMap<>();
@@ -169,7 +210,7 @@ public enum NetManager {
 
         }
 
-        public static void fillParams(Map<String, Object> paramsMap, BaseFormParam param) {
+        public static void fillParams(Map<String, Object> paramsMap, BaseParam param) {
             if (!paramsMap.containsKey(HUOBI_KEY_ACCESSKEY)) {
                 paramsMap.put(HUOBI_KEY_ACCESSKEY, String.valueOf(param.getApiKey()));
             }
