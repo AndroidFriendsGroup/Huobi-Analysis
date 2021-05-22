@@ -38,7 +38,7 @@
         android:orientation="horizontal">
 
         <EditText
-            android:id="@+id/ed_token"
+            android:id="@+id/ed_acckey"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
@@ -59,7 +59,46 @@
             android:background="@color/common_blue" />
 
         <TextView
-            android:id="@+id/tv_paste"
+            android:id="@+id/tv_acckey_paste"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginRight="12dp"
+            android:text="粘贴"
+            android:textColor="@color/common_blue"
+            android:textSize="@dimen/text_normal"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/bg_stroke_edittext"
+        android:orientation="horizontal">
+
+        <EditText
+            android:id="@+id/ed_secretkey"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="@color/transparent"
+            android:hint="请输入SecretKey"
+            android:padding="12dp"
+            android:textColor="@color/text_black2"
+            android:textColorHint="@color/text_black3"
+            android:textSize="@dimen/text_normal" />
+
+        <View
+            android:layout_width="0.5dp"
+            android:layout_height="match_parent"
+            android:layout_marginLeft="12dp"
+            android:layout_marginTop="5dp"
+            android:layout_marginRight="12dp"
+            android:layout_marginBottom="5dp"
+            android:background="@color/common_blue" />
+
+        <TextView
+            android:id="@+id/tv_secret_paste"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginRight="12dp"

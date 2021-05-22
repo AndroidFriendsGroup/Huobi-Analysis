@@ -1,5 +1,7 @@
 package com.razerdp.huobi.analysis.net.response.base;
 
+import com.google.gson.annotations.SerializedName;
+
 import android.text.TextUtils;
 
 /**
@@ -15,10 +17,19 @@ public class BaseResponse<T> {
     protected String ch;
     //接口返回的UTC时间的时间戳，单位毫秒
     protected long ts;
+    @SerializedName("err-code")
+    protected String errorCode;
+    @SerializedName("err-msg")
+    protected String errorMsg;
     public T data;
 
     public boolean isOK(){
         return TextUtils.equals(status,"ok");
     }
+
+    public String getErrorMsg(){
+        return errorMsg;
+    }
+
 
 }

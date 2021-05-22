@@ -1,5 +1,9 @@
 package com.razerdp.huobi.analysis.net.response.listener;
 
+import com.razerdp.huobi.analysis.base.net.exception.NetExcepction;
+import com.razerdp.huobi.analysis.net.response.base.BaseResponse;
+import com.razerdp.huobi.analysis.net.response.base.BaseResponse2;
+
 import org.jetbrains.annotations.NotNull;
 
 import io.reactivex.Observer;
@@ -14,11 +18,20 @@ public abstract class OnResponseListener<T> implements Observer<T> {
 
     @Override
     public void onSubscribe(@NotNull Disposable d) {
-
     }
 
     @Override
     public void onNext(@NotNull T t) {
+        if (t instanceof BaseResponse) {
+            if (!((BaseResponse<?>) t).isOK()) {
+                onError(new NetExcepction(((BaseResponse<?>) t).getErrorMsg()));
+            }
+        }
+        if (t instanceof BaseResponse2) {
+            if (!((BaseResponse2<?>) t).isOK()) {
+                onError(new NetExcepction(((BaseResponse2<?>) t).getMessage()));
+            }
+        }
         onSuccess(t);
         onComplete();
     }
@@ -32,11 +45,9 @@ public abstract class OnResponseListener<T> implements Observer<T> {
     }
 
     public void onFailed(@NotNull Throwable e) {
-
     }
 
     @Override
     public void onComplete() {
-
     }
 }

@@ -35,7 +35,7 @@ public class TimeUtil {
         return w;
     }
 
-    public final static String YYYYMMDDTHHMMSS = "yyyy-MM-ddTHH:mm:ss";
+    public final static String YYYYMMDDTHHMMSS = "yyyy-MM-dd'T'HH:mm:ss";
     public final static String YYYYMMDD = "yyyy-MM-dd";
     public final static String YYYYMD = "yyyyMMdd";
     public final static String YYYYMM = "yyyy-MM";

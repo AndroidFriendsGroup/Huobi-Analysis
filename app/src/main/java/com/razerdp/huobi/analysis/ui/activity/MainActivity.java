@@ -1,5 +1,6 @@
 package com.razerdp.huobi.analysis.ui.activity;
 
+import android.graphics.Typeface;
 import android.view.View;
 import android.widget.TextView;
 
@@ -8,18 +9,24 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 
 import com.razerdp.huobi.analysis.base.baseactivity.BaseActivity;
 import com.razerdp.huobi.analysis.base.baseadapter.BaseSimpleRecyclerViewHolder;
+import com.razerdp.huobi.analysis.base.baseadapter.OnItemLongClickListener;
 import com.razerdp.huobi.analysis.base.baseadapter.SimpleRecyclerViewAdapter;
-import com.razerdp.huobi.analysis.base.interfaces.SimpleCallback;
+import com.razerdp.huobi.analysis.base.interfaces.ExtSimpleCallback;
 import com.razerdp.huobi.analysis.base.manager.UserManager;
+import com.razerdp.huobi.analysis.base.net.NetManager;
 import com.razerdp.huobi.analysis.entity.UserInfo;
 import com.razerdp.huobi.analysis.ui.ActivityLauncher;
 import com.razerdp.huobi.analysis.ui.popup.PopupAddUser;
+import com.razerdp.huobi.analysis.ui.popup.PopupConfirm;
 import com.razerdp.huobi.analysis.ui.widget.DPRecyclerView;
 import com.razerdp.huobi.analysis.ui.widget.DPTextView;
 import com.razerdp.huobi.analysis.utils.ButterKnifeUtil;
 import com.razerdp.huobi.analysis.utils.NumberUtils;
+import com.razerdp.huobi.analysis.utils.SpanUtil;
 import com.razerdp.huobi.analysis.utils.StringUtil;
+import com.razerdp.huobi.analysis.utils.UIHelper;
 import com.razerdp.huobi.analysis.utils.ViewUtil;
+import com.razerdp.huobi.analysis.utils.rx.RxHelper;
 import com.razerdp.huobi_analysis.R;
 
 import org.jetbrains.annotations.NotNull;
@@ -33,7 +40,7 @@ public class MainActivity extends BaseActivity {
     SimpleRecyclerViewAdapter<UserInfo> mAdapter;
 
     PopupAddUser popupAddUser;
-
+    PopupConfirm mPopupConfirm;
 
     @Override
     public int contentViewLayoutId() {
@@ -47,10 +54,27 @@ public class MainActivity extends BaseActivity {
         mAdapter.outher(this);
         rvContent.setLayoutManager(new LinearLayoutManager(this));
         rvContent.addFooterView(inflateFooterView());
-        mAdapter.setOnItemClickListener((v, position, data) -> ActivityLauncher.toDetail(self(), data));
+        mAdapter.setOnItemClickListener(
+                (v, position, data) -> ActivityLauncher.toDetail(self(), data));
+        mAdapter.setOnItemLongClickListener(new OnItemLongClickListener<UserInfo>() {
+            @Override
+            public boolean onItemLongClick(View v, int position, UserInfo data) {
+                showDelUserPopup(data);
+                return true;
+            }
+        });
         rvContent.setAdapter(mAdapter);
+        refreshAccountAssets();
     }
 
+    void refreshAccountAssets() {
+        if (mAdapter == null) {
+            return;
+        }
+        for (UserInfo data : mAdapter.getDatas()) {
+            requestAccountAssets(data);
+        }
+    }
 
     View inflateFooterView() {
         View footer = ViewUtil.inflate(this, R.layout.item_footer_add, rvContent, false);
@@ -61,31 +85,78 @@ public class MainActivity extends BaseActivity {
     void showAddUserPopup() {
         if (popupAddUser == null) {
             popupAddUser = new PopupAddUser(this);
-            popupAddUser.setOnAddUserClickListener((nickName, apiToken) -> {
-                UserInfo userInfo = new UserInfo();
+            popupAddUser.setOnAddUserClickListener((nickName, accetKey, secretKey) -> {
+                UserInfo userInfo = new UserInfo(accetKey, secretKey);
                 userInfo.name = nickName;
-                userInfo.apiToken = apiToken;
-                userInfo.assets = 0;
+                userInfo.assets = "0";
                 UserManager.INSTANCE.addUser(userInfo);
-                updateUserinfo(userInfo);
-                mAdapter.updateData(UserManager.INSTANCE.getUsers());
+                mAdapter.addData(userInfo);
+                requestUserAccount(userInfo);
             });
         }
         popupAddUser.showPopupWindow();
     }
 
+    void showDelUserPopup(UserInfo userInfo) {
+        if (mPopupConfirm == null) {
+            mPopupConfirm = new PopupConfirm(this);
+            mPopupConfirm.setTitle("删除用户");
+            mPopupConfirm.setOKClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    UIHelper.toast("删除成功");
+                    UserManager.INSTANCE.removeUser(userInfo);
+                    mAdapter.remove(userInfo);
+                }
+            });
+        }
+        mPopupConfirm.setTips(SpanUtil.create("确定删除用户：" + userInfo.name + "吗？")
+                                      .append(userInfo.name)
+                                      .setTextColor(UIHelper.getColor(R.color.common_red_light))
+                                      .setTextStyle(Typeface.DEFAULT_BOLD)
+                                      .getSpannableStringBuilder());
+        mPopupConfirm.showPopupWindow();
+    }
 
-    void updateUserinfo(UserInfo userInfo) {
-        if (userInfo == null) return;
+    void requestUserAccount(UserInfo userInfo) {
+        if (userInfo == null) {
+            return;
+        }
         userInfo.isRefreshing = true;
         mAdapter.notifyDataSetChanged();
-        UserManager.INSTANCE.updateUser(userInfo, new SimpleCallback<UserInfo>() {
+        UserManager.INSTANCE.requestUserAccount(userInfo, new ExtSimpleCallback<UserInfo>() {
             @Override
             public void onCall(UserInfo data) {
                 userInfo.isRefreshing = false;
                 mAdapter.notifyDataSetChanged();
             }
+
+            @Override
+            public void onError(int code, String errorMessage) {
+                super.onError(code, errorMessage);
+                userInfo.isRefreshing = false;
+                mAdapter.notifyDataSetChanged();
+            }
         });
+    }
+
+    void requestAccountAssets(UserInfo userInfo) {
+        if (userInfo == null) {
+            return;
+        }
+        UserManager.INSTANCE.requestUserAssets(userInfo, new ExtSimpleCallback<UserInfo>() {
+            @Override
+            public void onCall(UserInfo data) {
+                mAdapter.notifyDataSetChanged();
+            }
+        });
+
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        refreshAccountAssets();
     }
 
     class Holder extends BaseSimpleRecyclerViewHolder<UserInfo> {
@@ -104,7 +175,7 @@ public class MainActivity extends BaseActivity {
         public Holder(@NonNull @NotNull View itemView) {
             super(itemView);
             ButterKnifeUtil.bind(this, itemView);
-            tvNoAccountId.setOnClickListener(v -> updateUserinfo(getData()));
+            tvNoAccountId.setOnClickListener(v -> requestUserAccount(getData()));
         }
 
         @Override
@@ -115,7 +186,7 @@ public class MainActivity extends BaseActivity {
         @Override
         public void onBindData(UserInfo data, int position) {
             tvName.setText(data.name);
-            tvToken.setText(StringUtil.subApiToken(data.apiToken));
+            tvToken.setText(StringUtil.subApiToken(data.accetKey));
             if (data.accountId == 0) {
                 tvAssets.setVisibility(View.GONE);
                 if (data.isRefreshing) {
@@ -129,7 +200,7 @@ public class MainActivity extends BaseActivity {
                 tvNoAccountId.setVisibility(View.GONE);
                 tvRefreshing.setVisibility(View.GONE);
                 tvAssets.setVisibility(View.VISIBLE);
-                tvAssets.setText(NumberUtils.formatDecimal(data.assets, 4));
+                tvAssets.setText(data.assets);
             }
         }
     }

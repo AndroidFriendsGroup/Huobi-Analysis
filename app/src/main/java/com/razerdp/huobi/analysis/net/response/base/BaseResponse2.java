@@ -18,4 +18,8 @@ public class BaseResponse2<T> {
         return code == 200;
     }
 
+    public String getMessage(){
+        return message;
+    }
+
 }

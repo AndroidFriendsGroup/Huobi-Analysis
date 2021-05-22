@@ -5,6 +5,8 @@ import android.view.View;
 import androidx.annotation.Nullable;
 
 import com.razerdp.huobi.analysis.base.baseactivity.BaseActivity;
+import com.razerdp.huobi.analysis.base.interfaces.SimpleCallback;
+import com.razerdp.huobi.analysis.base.manager.UserManager;
 import com.razerdp.huobi.analysis.entity.UserInfo;
 import com.razerdp.huobi.analysis.net.api.account.AccountAssets;
 import com.razerdp.huobi.analysis.net.response.account.AssetsResponse;
@@ -20,7 +22,8 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
     UserInfo userInfo;
 
     @Override
-    protected boolean onCheckIntentDataValidate(@Nullable @org.jetbrains.annotations.Nullable Data activityData) {
+    protected boolean onCheckIntentDataValidate(
+            @Nullable @org.jetbrains.annotations.Nullable Data activityData) {
         if (activityData == null || activityData.userInfo == null) {
             return false;
         }
@@ -35,18 +38,16 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
 
     @Override
     protected void onInitView(View decorView) {
-        RxHttp.get(AccountAssets.assetsApi(userInfo.apiToken))
-                .asClass(AssetsResponse.class)
-                .subscribe(new OnResponseListener<AssetsResponse>() {
-                    @Override
-                    public void onSuccess(@NotNull AssetsResponse assetsResponse) {
-
-                    }
-                });
+        UserManager.INSTANCE.requestUserAssets(userInfo, new SimpleCallback<UserInfo>() {
+            @Override
+            public void onCall(UserInfo data) {
+            }
+        });
 
     }
 
     public static class Data extends BaseActivity.IntentData {
+
         UserInfo userInfo;
 
         public Data setUserInfo(UserInfo userInfo) {

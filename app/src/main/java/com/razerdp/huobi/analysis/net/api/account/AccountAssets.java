@@ -8,8 +8,8 @@ package com.razerdp.huobi.analysis.net.api.account;
 public class AccountAssets {
 
     // 用户余额
-    public static String assetsApi(String apiToken) {
-        return String.format("/v1/account/accounts/%s/balance", apiToken);
+    public static String assetsApi() {
+        return "/v2/account/asset-valuation";
     }
 
 }

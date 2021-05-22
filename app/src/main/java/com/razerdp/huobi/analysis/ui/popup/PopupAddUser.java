@@ -25,17 +25,21 @@ import razerdp.basepopup.BasePopupWindow;
  * Description：
  */
 public class PopupAddUser extends BasePopupWindow {
+
     @BindView(R.id.ed_name)
     EditText edName;
-    @BindView(R.id.ed_token)
-    EditText edToken;
-    @BindView(R.id.tv_paste)
-    TextView tvPaste;
+    @BindView(R.id.ed_acckey)
+    EditText edAccetKey;
+    @BindView(R.id.tv_acckey_paste)
+    TextView tvAccetKeyPaste;
+    @BindView(R.id.ed_secretkey)
+    EditText edSecretKey;
+    @BindView(R.id.tv_secret_paste)
+    TextView tvSecretKeyPaste;
     @BindView(R.id.tv_how)
     TextView tvHow;
     @BindView(R.id.tv_ok)
     DPTextView tvOk;
-
 
     OnAddUserClickListener onAddUserClickListener;
 
@@ -43,28 +47,43 @@ public class PopupAddUser extends BasePopupWindow {
         super(context);
         setContentView(R.layout.popup_add_user);
         tvOk.setOnClickListener(v -> {
-            if (onAddUserClickListener == null) return;
-            String apiToken = edToken.getText().toString().trim();
-            if (TextUtils.isEmpty(apiToken)) {
-                UIHelper.toast("api token不能为空哦");
+            if (onAddUserClickListener == null) {
+                return;
+            }
+            String accetkey = edAccetKey.getText().toString().trim();
+            if (TextUtils.isEmpty(accetkey)) {
+                UIHelper.toast("accetkey不能为空哦");
+                return;
+            }
+            String secretKey = edSecretKey.getText().toString().trim();
+            if (TextUtils.isEmpty(secretKey)) {
+                UIHelper.toast("secretKey不能为空哦");
                 return;
             }
             String nickName = edName.getText().toString().trim();
             if (TextUtils.isEmpty(nickName)) {
-                int length = apiToken.length();
-                nickName = "****" + apiToken.substring(length - length / 4, length);
+                int length = accetkey.length();
+                nickName = "****" + accetkey.substring(length - length / 4, length);
             }
-            onAddUserClickListener.onAddUserClick(nickName, apiToken);
+            onAddUserClickListener.onAddUserClick(nickName, accetkey, secretKey);
             dismiss();
             edName.setText("");
-            edToken.setText("");
+            edAccetKey.setText("");
         });
+        tvAccetKeyPaste
+                .setOnClickListener(v -> {
+                    edAccetKey.setText(ToolUtil.getDataFromClipboard());
+                    edAccetKey.setSelection(edAccetKey.length());
 
-        tvPaste.setOnClickListener(v -> edToken.setText(ToolUtil.getDataFromClipboard()));
+                });
+        tvSecretKeyPaste.setOnClickListener(
+                v -> {
+                    edSecretKey.setText(ToolUtil.getDataFromClipboard());
+                    edSecretKey.setSelection(edSecretKey.length());
+                });
         tvHow.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-
             }
         });
     }
@@ -81,6 +100,7 @@ public class PopupAddUser extends BasePopupWindow {
     }
 
     public interface OnAddUserClickListener {
-        void onAddUserClick(String nickName, String apiToken);
+
+        void onAddUserClick(String nickName, String accetKey, String secretKey);
     }
 }
