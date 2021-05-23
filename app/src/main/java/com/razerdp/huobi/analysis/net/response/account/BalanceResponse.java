@@ -1,10 +1,9 @@
 package com.razerdp.huobi.analysis.net.response.account;
 
-import com.razerdp.huobi.analysis.entity.UserInfo;
-import com.razerdp.huobi.analysis.net.response.base.BaseResponse;
-import com.razerdp.huobi.analysis.utils.log.HLog;
-
 import android.text.TextUtils;
+
+import com.razerdp.huobi.analysis.entity.UserInfo;
+import com.razerdp.huobi.analysis.utils.log.HLog;
 
 import java.util.HashMap;
 import java.util.List;
@@ -15,7 +14,7 @@ import java.util.Map;
  * <p>
  * Description：
  */
-public class BalanceResponse extends BaseResponse<BalanceResponse> {
+public class BalanceResponse  {
 
     public long id;
     public String type;

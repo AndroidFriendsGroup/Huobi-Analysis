@@ -2,11 +2,10 @@ package com.razerdp.huobi.analysis.base.manager;
 
 import android.text.TextUtils;
 
-import androidx.annotation.Nullable;
-
 import com.razerdp.huobi.analysis.base.Constants;
 import com.razerdp.huobi.analysis.base.interfaces.ExtSimpleCallback;
 import com.razerdp.huobi.analysis.base.interfaces.SimpleCallback;
+import com.razerdp.huobi.analysis.base.net.retry.RetryHandler;
 import com.razerdp.huobi.analysis.entity.UserInfo;
 import com.razerdp.huobi.analysis.net.api.account.AccountAssets;
 import com.razerdp.huobi.analysis.net.api.account.AccountInfo;
@@ -22,8 +21,8 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
+import androidx.annotation.Nullable;
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import rxhttp.RxHttp;
 
@@ -78,29 +77,29 @@ public enum UserManager {
             return;
         }
         RxHttp.get(AccountInfo.accountInfoApi(), userInfo)
-              .sign()
-              .asClass(AccountResponse.class)
-              .observeOn(AndroidSchedulers.mainThread())
-              .subscribe(new OnResponseListener<AccountResponse>() {
-                  @Override
-                  public void onSuccess(@NotNull AccountResponse accountResponse) {
-                      List<AccountResponse> responses = accountResponse.data;
-                      for (AccountResponse data : responses) {
-                          if (TextUtils.equals(data.type, Constants.AccountType.SPOT)) {
-                              userInfo.accountId = data.accountid;
-                              save();
-                              callSuccess(cb, userInfo);
-                              break;
-                          }
-                      }
-                  }
+                .sign()
+                .asResponseList(AccountResponse.class)
+                .retryWhen(new RetryHandler())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(new OnResponseListener<List<AccountResponse>>() {
+                    @Override
+                    public void onSuccess(@NotNull List<AccountResponse> responses) {
+                        for (AccountResponse data : responses) {
+                            if (TextUtils.equals(data.type, Constants.AccountType.SPOT)) {
+                                userInfo.accountId = data.accountid;
+                                save();
+                                callSuccess(cb, userInfo);
+                                break;
+                            }
+                        }
+                    }
 
-                  @Override
-                  public void onError(String errorCode, @NotNull Throwable e) {
-                      super.onError(errorCode, e);
-                      callError(cb, e.hashCode(), e.getMessage());
-                  }
-              });
+                    @Override
+                    public void onError(String errorCode, @NotNull Throwable e) {
+                        super.onError(errorCode, e);
+                        callError(cb, e.hashCode(), e.getMessage());
+                    }
+                });
 
     }
 
@@ -110,26 +109,26 @@ public enum UserManager {
             return;
         }
         RxHttp.get(AccountAssets.assetsApi(), userInfo)
-              .addQuery("accountType", Constants.AccountType.SPOT)
-              .addQuery("valuationCurrency", "CNY")
-              .sign()
-              .asClass(AssetsResponse.class)
-              .observeOn(AndroidSchedulers.mainThread())
-              .subscribe(new OnResponseListener<AssetsResponse>() {
-                  @Override
-                  public void onSuccess(@NotNull AssetsResponse accountAssets) {
-                      userInfo.assets = accountAssets.data.balance;
-                      saveAsync();
-                      callSuccess(cb, userInfo);
-                  }
+                .addQuery("accountType", Constants.AccountType.SPOT)
+                .addQuery("valuationCurrency", "CNY")
+                .sign()
+                .asResponse(AssetsResponse.class)
+                .retryWhen(new RetryHandler())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(new OnResponseListener<AssetsResponse>() {
+                    @Override
+                    public void onSuccess(@NotNull AssetsResponse accountAssets) {
+                        userInfo.assets = accountAssets.balance;
+                        saveAsync();
+                        callSuccess(cb, userInfo);
+                    }
 
-                  @Override
-                  public void onError(String errorCode, @NotNull Throwable e) {
-                      super.onError(errorCode, e);
-                      callError(cb, e.hashCode(), e.getMessage());
-                      RxHelper.delay(5, TimeUnit.SECONDS, data -> requestUserAssets(userInfo, cb));
-                  }
-              });
+                    @Override
+                    public void onError(String errorCode, @NotNull Throwable e) {
+                        super.onError(errorCode, e);
+                        callError(cb, e.hashCode(), e.getMessage());
+                    }
+                });
     }
 
     <T> void callSuccess(SimpleCallback<T> cb, T t) {

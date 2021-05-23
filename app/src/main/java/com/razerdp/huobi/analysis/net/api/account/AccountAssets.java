@@ -14,6 +14,6 @@ public class AccountAssets {
 
     // 用户月
     public static String balanceApi(long accountID) {
-        return String.format("/v1/account/accounts/%s/balance", String.valueOf(accountID));
+        return String.format("/v1/account/accounts/%s/balance", accountID);
     }
 }

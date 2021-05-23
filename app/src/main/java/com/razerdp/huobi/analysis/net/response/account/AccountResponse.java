@@ -1,16 +1,13 @@
 package com.razerdp.huobi.analysis.net.response.account;
 
 import com.google.gson.annotations.SerializedName;
-import com.razerdp.huobi.analysis.net.response.base.BaseResponse;
-
-import java.util.List;
 
 /**
  * Created by 大灯泡 on 2021/5/20
  * <p>
  * Description：
  */
-public class AccountResponse extends BaseResponse<List<AccountResponse>> {
+public class AccountResponse {
 
     @SerializedName("id")
     public long accountid;

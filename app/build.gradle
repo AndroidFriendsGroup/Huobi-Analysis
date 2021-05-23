@@ -64,14 +64,14 @@ dependencies {
     // rx
     implementation 'io.reactivex.rxjava2:rxjava:2.2.14'
     implementation 'io.reactivex.rxjava2:rxandroid:2.1.1'
-    implementation 'com.ljx.rxlife2:rxlife-rxjava:2.0.0'
     // permission
     implementation 'pub.devrel:easypermissions:3.0.0'
     // basepopup
     implementation 'io.github.razerdp:BasePopup:3.0.0-SNAPSHOT'
     // rxhttp
-    implementation 'com.ljx.rxhttp:rxhttp:2.5.7'
-    annotationProcessor 'com.ljx.rxhttp:rxhttp-compiler:2.5.7'
+    implementation 'com.github.liujingxing.rxhttp:rxhttp:2.6.1'
+    implementation 'com.github.liujingxing.rxlife:rxlife-rxjava2:2.1.0'
+    annotationProcessor 'com.github.liujingxing.rxhttp:rxhttp-compiler:2.6.1'
     // butterknife
     implementation "com.jakewharton:butterknife:10.2.1"
     annotationProcessor "com.jakewharton:butterknife-compiler:10.2.1"

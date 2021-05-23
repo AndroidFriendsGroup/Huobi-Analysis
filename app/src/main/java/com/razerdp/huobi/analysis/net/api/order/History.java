@@ -1,6 +1,5 @@
 package com.razerdp.huobi.analysis.net.api.order;
 
-import java.lang.annotation.Retention;
 
 public class History {
 

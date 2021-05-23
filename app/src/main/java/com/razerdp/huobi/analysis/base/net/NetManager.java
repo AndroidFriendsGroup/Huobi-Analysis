@@ -1,20 +1,28 @@
 package com.razerdp.huobi.analysis.base.net;
 
+import android.annotation.SuppressLint;
+import android.os.SystemClock;
+import android.util.Base64;
+
+import com.razerdp.huobi.analysis.base.net.exception.NetException;
 import com.razerdp.huobi.analysis.base.net.interceptor.HttpLoggingInterceptor;
 import com.razerdp.huobi.analysis.entity.UserInfo;
+import com.razerdp.huobi.analysis.net.response.base.BaseResponse;
+import com.razerdp.huobi.analysis.net.response.listener.OnResponseListener;
 import com.razerdp.huobi.analysis.utils.StringUtil;
 import com.razerdp.huobi.analysis.utils.TimeUtil;
 import com.razerdp.huobi.analysis.utils.log.HLog;
 import com.razerdp.huobi.analysis.utils.rx.RxHelper;
 import com.razerdp.huobi.analysis.utils.rx.RxTaskCall;
 
-import android.annotation.SuppressLint;
-import android.util.Base64;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
+import java.lang.reflect.Type;
 import java.net.InetAddress;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -23,6 +31,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import javax.crypto.Mac;
@@ -30,15 +39,20 @@ import javax.crypto.spec.SecretKeySpec;
 
 import okhttp3.OkHttpClient;
 import okhttp3.RequestBody;
+import okhttp3.Response;
 import rxhttp.RxHttp;
+import rxhttp.RxHttpPlugins;
 import rxhttp.wrapper.annotation.DefaultDomain;
 import rxhttp.wrapper.annotation.Param;
+import rxhttp.wrapper.annotation.Parser;
 import rxhttp.wrapper.annotations.Nullable;
 import rxhttp.wrapper.entity.KeyValuePair;
 import rxhttp.wrapper.param.AbstractParam;
 import rxhttp.wrapper.param.FormParam;
 import rxhttp.wrapper.param.Method;
+import rxhttp.wrapper.parse.AbstractParser;
 import rxhttp.wrapper.ssl.HttpsUtils;
+import rxhttp.wrapper.utils.Converter;
 
 /**
  * Created by 大灯泡 on 2021/5/19
@@ -48,6 +62,16 @@ import rxhttp.wrapper.ssl.HttpsUtils;
 public enum NetManager {
     INSTANCE;
     String[] apis = {"api.huobi.pro", "api-aws.huobi.pro", "api.huobi.de.com"};
+    long systemElapsedRealtime;
+    long huobiNetTime;
+
+    public long curTime() {
+        if (huobiNetTime == 0) {
+            return System.currentTimeMillis();
+        } else {
+            return huobiNetTime + (SystemClock.elapsedRealtime() - systemElapsedRealtime);
+        }
+    }
 
     public static class Url {
 
@@ -59,8 +83,20 @@ public enum NetManager {
 
     @SuppressLint("CheckResult")
     public void init() {
-        RxHttp.init(getDefaultOkHttpClient());
+        RxHttpPlugins.init(getDefaultOkHttpClient());
         ping();
+        RxHttp.get("/v1/common/timestamp")
+                .asMap(String.class, Object.class)
+                .subscribe(new OnResponseListener<Map<String, Object>>() {
+                    @Override
+                    public void onSuccess(@NotNull Map<String, Object> map) {
+                        Object time = map.get("data");
+                        if (time instanceof Double) {
+                            huobiNetTime = ((Double) time).longValue();
+                            systemElapsedRealtime = SystemClock.elapsedRealtime();
+                        }
+                    }
+                });
     }
 
     private static OkHttpClient getDefaultOkHttpClient() {
@@ -141,6 +177,30 @@ public enum NetManager {
         return delay;
     }
 
+    @Parser(name = "Response")
+    public static class ResponseParser<T> extends AbstractParser<T> {
+
+        protected ResponseParser() {
+            super();
+        }
+
+        public ResponseParser(Type type) {
+            super(type);
+        }
+
+        @Override
+        public T onParse(@NotNull Response response) throws IOException {
+            BaseResponse<T> data = Converter.convertTo(response, BaseResponse.class, mType);
+            if (data == null) {
+                throw new NetException("0", "no data");
+            }
+            if (!data.isOK()) {
+                throw new NetException(data.getErrorCode(), data.getErrorMsg());
+            }
+            return data.data;
+        }
+    }
+
     // https://github.com/liujingxing/rxhttp/wiki/%E9%AB%98%E7%BA%A7%E5%8A%9F%E8%83%BD#%E8%87%AA%E5%AE%9A%E4%B9%89Param
     interface BaseParam {
 
@@ -213,18 +273,18 @@ public enum NetManager {
 
     public void test() {
         UserInfo userInfo = new UserInfo("b921733d-a2794daf-cb171f7c-bg2hyw2dfg",
-                "e0e7ae45-78660353-60678e79-345bf");
+                                         "e0e7ae45-78660353-60678e79-345bf");
         userInfo.accountId = 16936884;
     }
 
     public void testSign() {
         StringBuilder builder = new StringBuilder();
         builder.append("GET").append('\n')
-               .append("api.huobi.pro").append('\n')
-               .append("/v2/account/asset-valuation").append('\n')
-               .append("AccessKeyId=b921733d-a2794daf-cb171f7c-bg2hyw2dfg&SignatureMethod=HmacSHA256&SignatureVersion=2&Timestamp=2021-05-22T18%3A20%3A12&accountType=spot&valuationCurrency=CNY");
+                .append("api.huobi.pro").append('\n')
+                .append("/v2/account/asset-valuation").append('\n')
+                .append("AccessKeyId=b921733d-a2794daf-cb171f7c-bg2hyw2dfg&SignatureMethod=HmacSHA256&SignatureVersion=2&Timestamp=2021-05-22T18%3A20%3A12&accountType=spot&valuationCurrency=CNY");
         HLog.i("testSign", Sign.signInternal(builder.toString(), Sign.V1.SIGN_METHOD_VALUE,
-                "e0e7ae45-78660353-60678e79-345bf"));
+                                             "e0e7ae45-78660353-60678e79-345bf"));
     }
 
     // https://huobiapi.github.io/docs/spot/v1/cn/#c64cd15fdc
@@ -256,8 +316,8 @@ public enum NetManager {
             AbstractParam requestParam = (AbstractParam) param;
             StringBuilder builder = new StringBuilder();
             builder.append(requestParam.getMethod().toString()).append('\n')
-                   .append(param.getCurApi()).append('\n')
-                   .append(requestParam.getSimpleUrl()).append('\n');
+                    .append(param.getCurApi()).append('\n')
+                    .append(requestParam.getSimpleUrl()).append('\n');
 //            boolean isV2 = requestParam.getSimpleUrl().toLowerCase().contains("v2");
             signV1(builder, param);
         }
@@ -269,12 +329,13 @@ public enum NetManager {
             requestParam.add(V1.SIGN_METHOD, V1.SIGN_METHOD_VALUE);
             requestParam.add(V1.SIGN_VER, V1.SIGN_VER_VALUE);
             requestParam.add(V1.TIME,
-                    TimeUtil.longToTimeStr(System.currentTimeMillis(), TimeUtil.YYYYMMDDTHHMMSS));
+                             TimeUtil.longToTimeStr(INSTANCE.curTime(),
+                                                    TimeUtil.YYYYMMDDTHHMMSS));
             builder.append(sortAndEncode(requestParam.getQueryParam()));
             HLog.i("signV1", builder);
             requestParam
                     .addEncodedQuery(V1.SIGN, signInternal(builder.toString(), V1.SIGN_METHOD_VALUE,
-                            param.getUserInfo().secretKey));
+                                                           param.getUserInfo().secretKey));
         }
 
         @SuppressWarnings("ConstantConditions")
@@ -284,12 +345,13 @@ public enum NetManager {
             requestParam.add(V2.SIGN_METHOD, V2.SIGN_METHOD_VALUE);
             requestParam.add(V2.SIGN_VER, V2.SIGN_VER_VALUE);
             requestParam.add(V2.TIME,
-                    TimeUtil.longToTimeStr(System.currentTimeMillis(), TimeUtil.YYYYMMDDTHHMMSS));
+                             TimeUtil.longToTimeStr(INSTANCE.curTime(),
+                                                    TimeUtil.YYYYMMDDTHHMMSS));
             builder.append(sortAndEncode(requestParam.getQueryParam()));
             HLog.i("signV2", builder);
             requestParam
                     .addEncodedQuery(V2.SIGN, signInternal(builder.toString(), V2.SIGN_METHOD_VALUE,
-                            param.getUserInfo().secretKey));
+                                                           param.getUserInfo().secretKey));
         }
 
         static String sortAndEncode(List<KeyValuePair> keyValues) {
@@ -297,9 +359,9 @@ public enum NetManager {
             Collections.sort(keyValues, COMPARATOR);
             for (KeyValuePair keyValue : keyValues) {
                 builder.append("&")
-                       .append(keyValue.getKey())
-                       .append("=")
-                       .append(encode(keyValue.getValue()));
+                        .append(keyValue.getKey())
+                        .append("=")
+                        .append(encode(keyValue.getValue()));
             }
             builder.delete(0, 1);
             return builder.toString();
@@ -320,7 +382,7 @@ public enum NetManager {
             try {
                 hmacSha256 = Mac.getInstance(signType);
                 SecretKeySpec secKey = new SecretKeySpec(secretKey.getBytes(StandardCharsets.UTF_8),
-                        signType);
+                                                         signType);
                 hmacSha256.init(secKey);
                 byte[] hash = hmacSha256.doFinal(from.getBytes(StandardCharsets.UTF_8));
                 return Base64.encodeToString(hash, Base64.DEFAULT);

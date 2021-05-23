@@ -2,11 +2,7 @@ package com.razerdp.huobi.analysis.net.response.order;
 
 import com.google.gson.annotations.SerializedName;
 
-import com.razerdp.huobi.analysis.net.response.base.BaseResponse;
-
-import java.util.List;
-
-public class HistoryOrderResponse extends BaseResponse<List<HistoryOrderResponse>> {
+public class HistoryOrderResponse {
 
     // 订单时间
     @SerializedName("created-at")

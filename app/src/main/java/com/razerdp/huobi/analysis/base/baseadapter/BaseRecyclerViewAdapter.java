@@ -6,14 +6,13 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Space;
 
-import androidx.annotation.NonNull;
-import androidx.recyclerview.widget.RecyclerView;
-
 import com.razerdp.huobi.analysis.utils.ToolUtil;
 
 import java.util.ArrayList;
 import java.util.List;
 
+import androidx.annotation.NonNull;
+import androidx.recyclerview.widget.RecyclerView;
 import razerdp.util.log.PopupLog;
 
 /**
@@ -68,8 +67,8 @@ public abstract class BaseRecyclerViewAdapter<T> extends RecyclerView.Adapter<Ba
         int layout = getLayoutResId(viewType);
         if (layout != 0) {
             holder = getViewHolder(parent,
-                    mInflater.inflate(layout, parent, false),
-                    viewType);
+                                   mInflater.inflate(layout, parent, false),
+                                   viewType);
             setupClickEvent(holder);
             return holder;
         }
@@ -257,6 +256,14 @@ public abstract class BaseRecyclerViewAdapter<T> extends RecyclerView.Adapter<Ba
         return context;
     }
 
+    public void notifyItemChanged(T data) {
+        int index = mDatas.indexOf(data);
+        if (index > -1) {
+            notifyItemChanged(index);
+        } else {
+            notifyDataSetChanged();
+        }
+    }
 
     protected BaseRecyclerViewHolder createEmptyHolder() {
         return new EmptyHolder(new Space(getContext()));
