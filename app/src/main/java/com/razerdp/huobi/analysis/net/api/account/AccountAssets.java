@@ -7,9 +7,13 @@ package com.razerdp.huobi.analysis.net.api.account;
  */
 public class AccountAssets {
 
-    // 用户余额
+    // 用户资产
     public static String assetsApi() {
         return "/v2/account/asset-valuation";
     }
 
+    // 用户月
+    public static String balanceApi(long accountID) {
+        return String.format("/v1/account/accounts/%s/balance", String.valueOf(accountID));
+    }
 }

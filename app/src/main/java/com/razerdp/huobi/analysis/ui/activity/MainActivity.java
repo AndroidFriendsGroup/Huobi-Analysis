@@ -32,6 +32,7 @@ import com.razerdp.huobi_analysis.R;
 import org.jetbrains.annotations.NotNull;
 
 import butterknife.BindView;
+import rxhttp.RxHttp;
 
 public class MainActivity extends BaseActivity {
 

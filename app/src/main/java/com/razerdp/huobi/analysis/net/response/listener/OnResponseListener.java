@@ -24,12 +24,18 @@ public abstract class OnResponseListener<T> implements Observer<T> {
     public void onNext(@NotNull T t) {
         if (t instanceof BaseResponse) {
             if (!((BaseResponse<?>) t).isOK()) {
-                onError(new NetExcepction(((BaseResponse<?>) t).getErrorMsg()));
+                onError(((BaseResponse<?>) t).getErrorCode(),
+                        new NetExcepction(((BaseResponse<?>) t).getErrorMsg()));
+                onComplete();
+                return;
             }
         }
         if (t instanceof BaseResponse2) {
             if (!((BaseResponse2<?>) t).isOK()) {
-                onError(new NetExcepction(((BaseResponse2<?>) t).getMessage()));
+                onError(String.valueOf(((BaseResponse2<?>) t).getCode()),
+                        new NetExcepction(((BaseResponse2<?>) t).getMessage()));
+                onComplete();
+                return;
             }
         }
         onSuccess(t);
@@ -40,11 +46,11 @@ public abstract class OnResponseListener<T> implements Observer<T> {
 
     @Override
     public void onError(@NotNull Throwable e) {
-        onFailed(e);
+        onError(null, e);
         onComplete();
     }
 
-    public void onFailed(@NotNull Throwable e) {
+    public void onError(String errorCode, @NotNull Throwable e) {
     }
 
     @Override

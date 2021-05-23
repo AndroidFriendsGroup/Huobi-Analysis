@@ -31,5 +31,7 @@ public class BaseResponse<T> {
         return errorMsg;
     }
 
-
+    public String getErrorCode() {
+        return errorCode;
+    }
 }

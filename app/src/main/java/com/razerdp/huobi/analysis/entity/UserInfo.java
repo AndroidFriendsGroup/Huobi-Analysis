@@ -3,6 +3,8 @@ package com.razerdp.huobi.analysis.entity;
 import com.google.gson.annotations.Expose;
 
 import java.io.Serializable;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -16,6 +18,7 @@ public class UserInfo implements Serializable {
     public String name;
     public long accountId;
     public String assets;
+    public Map<String,Double> balances;
 
     public transient boolean isRefreshing;
 

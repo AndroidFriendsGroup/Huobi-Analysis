@@ -7,7 +7,6 @@ import androidx.annotation.Nullable;
 import com.razerdp.huobi.analysis.base.Constants;
 import com.razerdp.huobi.analysis.base.interfaces.ExtSimpleCallback;
 import com.razerdp.huobi.analysis.base.interfaces.SimpleCallback;
-import com.razerdp.huobi.analysis.base.net.NetManager;
 import com.razerdp.huobi.analysis.entity.UserInfo;
 import com.razerdp.huobi.analysis.net.api.account.AccountAssets;
 import com.razerdp.huobi.analysis.net.api.account.AccountInfo;
@@ -17,13 +16,11 @@ import com.razerdp.huobi.analysis.net.response.listener.OnResponseListener;
 import com.razerdp.huobi.analysis.utils.SharedPreferencesUtils;
 import com.razerdp.huobi.analysis.utils.ToolUtil;
 import com.razerdp.huobi.analysis.utils.gson.GsonUtil;
-import com.razerdp.huobi.analysis.utils.rx.RxCall;
 import com.razerdp.huobi.analysis.utils.rx.RxHelper;
 
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -99,8 +96,8 @@ public enum UserManager {
                   }
 
                   @Override
-                  public void onFailed(@NotNull Throwable e) {
-                      super.onFailed(e);
+                  public void onError(String errorCode, @NotNull Throwable e) {
+                      super.onError(errorCode, e);
                       callError(cb, e.hashCode(), e.getMessage());
                   }
               });
@@ -127,8 +124,8 @@ public enum UserManager {
                   }
 
                   @Override
-                  public void onFailed(@NotNull Throwable e) {
-                      super.onFailed(e);
+                  public void onError(String errorCode, @NotNull Throwable e) {
+                      super.onError(errorCode, e);
                       callError(cb, e.hashCode(), e.getMessage());
                       RxHelper.delay(5, TimeUnit.SECONDS, data -> requestUserAssets(userInfo, cb));
                   }

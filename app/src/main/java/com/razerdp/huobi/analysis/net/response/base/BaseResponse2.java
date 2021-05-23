@@ -22,4 +22,7 @@ public class BaseResponse2<T> {
         return message;
     }
 
+    public int getCode() {
+        return code;
+    }
 }

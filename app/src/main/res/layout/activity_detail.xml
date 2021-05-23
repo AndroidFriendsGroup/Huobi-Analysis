@@ -4,15 +4,28 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    tools:context="com.razerdp.huobi.analysis.ui.activity.MainActivity">
+    tools:context="com.razerdp.huobi.analysis.ui.activity.MainActivity"
+    >
 
     <com.razerdp.huobi.analysis.ui.widget.TitleBarView
         android:layout_width="match_parent"
-        android:layout_height="wrap_content" />
+        android:layout_height="wrap_content"
+        />
 
     <TextView
-        android:id="@+id/tv_content"
+        android:id="@+id/tv_state"
+        android:padding="12dp"
+        android:gravity="center"
+        android:textSize="@dimen/text_normal"
+        android:textColor="@color/text_black2"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content" />
+        android:layout_height="wrap_content"
+        />
+
+    <com.razerdp.huobi.analysis.ui.widget.DPRecyclerView
+        android:id="@+id/rv_content"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        />
 
 </LinearLayout>
