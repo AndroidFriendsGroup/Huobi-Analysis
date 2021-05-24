@@ -54,4 +54,14 @@ public class NumberUtils {
         return formatter.format(value);
     }
 
+    public static String getPrice(double what) {
+        double base = 1;
+        int saveCount = 4;
+        while (what > 0 && what < base) {
+            base *= 0.1;
+            saveCount++;
+        }
+        return formatDecimal(what, saveCount);
+    }
+
 }

@@ -82,7 +82,7 @@ public enum NetManager {
 
     private static OkHttpClient getDefaultOkHttpClient() {
         HttpsUtils.SSLParams sslParams = HttpsUtils.getSslSocketFactory();
-        return new OkHttpClient.Builder()
+        OkHttpClient client = new OkHttpClient.Builder()
                 .connectTimeout(10, TimeUnit.SECONDS)
                 .readTimeout(10, TimeUnit.SECONDS)
                 .writeTimeout(10, TimeUnit.SECONDS)
@@ -91,6 +91,9 @@ public enum NetManager {
                 .addInterceptor(new SignInterceptor())
                 .addInterceptor(new HttpLoggingInterceptor())
                 .build();
+        client.dispatcher().setMaxRequestsPerHost(12);
+        client.dispatcher().setMaxRequests(64);
+        return client;
     }
 
     public String simpleApi() {

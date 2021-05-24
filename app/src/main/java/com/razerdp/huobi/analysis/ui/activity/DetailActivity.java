@@ -26,6 +26,7 @@ import com.razerdp.huobi.analysis.utils.SpanUtil;
 import com.razerdp.huobi.analysis.utils.TimeUtil;
 import com.razerdp.huobi.analysis.utils.ToolUtil;
 import com.razerdp.huobi.analysis.utils.UIHelper;
+import com.razerdp.huobi.analysis.utils.log.HLog;
 import com.razerdp.huobi.analysis.utils.rx.RxHelper;
 import com.razerdp.huobi_analysis.R;
 import com.rxjava.rxlife.RxLife;
@@ -117,7 +118,7 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
         mTvState.setText("正在获取现货余额...");
         RxHttp.get(AccountAssets.balanceApi(userInfo.accountId), userInfo)
                 .asResponse(BalanceResponse.class)
-                .retryWhen(new RetryHandler(10, 800))
+                .retryWhen(new RetryHandler(5, 800))
                 .as(RxLife.asOnMain(self()))
                 .subscribe(new OnResponseListener<BalanceResponse>() {
                     @Override
@@ -151,11 +152,15 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
         if (detailInfo.endTime == 0) {
             detailInfo.endTime = System.currentTimeMillis();
         }
+        if (disposableMap.containsKey(detailInfo.tradingPair)) {
+            disposableMap.get(detailInfo.tradingPair).dispose();
+            disposableMap.remove(detailInfo.tradingPair);
+        }
         RxHttp.get(History.historyOrders(), userInfo)
                 .addQuery("symbol", detailInfo.getRequestTradePairs())
                 .addQuery("end-time", detailInfo.endTime)
                 .asResponseList(HistoryOrderResponse.class)
-                .retryWhen(new RetryHandler(10, 500))
+                .retryWhen(new RetryHandler(5, 500))
                 .as(RxLife.asOnMain(self()))
                 .subscribe(new OnResponseListener<List<HistoryOrderResponse>>() {
                     @Override
@@ -172,7 +177,7 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
                             continueRequest = detailInfo.amount < detailInfo.myAmount;
                         }
                         if (continueRequest) {
-                            detailInfo.endTime -= TimeUtil.DAY * 2000;
+                            detailInfo.endTime -= TimeUtil.DAY * 2 * 1000;
                             requestCost(detailInfo);
                         } else {
                             detailInfo.getAveragePrice();
@@ -201,11 +206,14 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
         RxHttp.get(Trade.newestTrade(), userInfo)
                 .addQuery("symbol", detailInfo.getRequestTradePairs())
                 .asResponseList(TradeResponse.class)
-                .retryWhen(new RetryHandler(10, 500))
+                .retryWhen(new RetryHandler(5, 500))
                 .as(RxLife.asOnMain(self()))
                 .subscribe(new OnResponseListener<List<TradeResponse>>() {
                     @Override
                     public void onSuccess(@NotNull List<TradeResponse> tradeResponses) {
+                        if (detailInfo.costMode == DetailInfo.MODE_REFRESHING) {
+                            return;
+                        }
                         if (ToolUtil.isEmpty(tradeResponses)) {
                             detailInfo.newestPrice = 0;
                             detailInfo.incomeMode = DetailInfo.MODE_ERROR;
@@ -264,8 +272,19 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
         public Holder(@NonNull @NotNull View itemView) {
             super(itemView);
             ButterKnifeUtil.bind(this, itemView);
-            layoutCost.setOnClickListener(v -> requestCost(getData()));
-            layoutIncome.setOnClickListener(v -> requestNewestPrice(getData()));
+            layoutCost.setOnClickListener(v -> {
+                if (getData().costMode == DetailInfo.MODE_REFRESHING) {
+                    return;
+                }
+                getData().clearInnerData();
+                requestCost(getData());
+            });
+            layoutIncome.setOnClickListener(v -> {
+                if (getData().incomeMode == DetailInfo.MODE_REFRESHING) {
+                    return;
+                }
+                requestNewestPrice(getData());
+            });
         }
 
         @Override
@@ -276,8 +295,8 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
         @Override
         public void onBindData(DetailInfo data, int position) {
             if (data.newestPrice != 0) {
-                String formatted = String.format("%s usdt", NumberUtils.formatDecimal(data.newestPrice, 8));
-                SpanUtil.create(String.format("%s : %s", data.tradingPair, formatted))
+                String formatted = String.format("%s USDT", NumberUtils.formatDecimal(data.newestPrice, 8));
+                SpanUtil.create(String.format("%s  %s", data.tradingPair, formatted))
                         .append(formatted)
                         .setTextColor(UIHelper.getColor(R.color.text_black3))
                         .setTextSize(12)
@@ -288,7 +307,7 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
             mTvAmount.setText(NumberUtils.formatDecimal(data.myAmount, 4));
             switch (data.costMode) {
                 case DetailInfo.MODE_IDLE:
-                    mTvCost.setText(NumberUtils.formatDecimal(data.getAveragePrice(), 8));
+                    mTvCost.setText(NumberUtils.getPrice(data.getAveragePrice()));
                     break;
                 case DetailInfo.MODE_REFRESHING:
                     mTvCost.setText("正在刷新");
@@ -302,7 +321,7 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
                     double income = data.getIncome();
                     mTvIncome.setTextColor(income > 0 ? UIHelper.getColor(R.color.common_red) : UIHelper
                             .getColor(R.color.common_green));
-                    mTvIncome.setText(NumberUtils.formatDecimal(income, 4));
+                    mTvIncome.setText(NumberUtils.getPrice(income));
                     break;
                 case DetailInfo.MODE_REFRESHING:
                     mTvIncome.setTextColor(UIHelper.getColor(R.color.text_black2));
@@ -352,8 +371,19 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
             this.isChange = true;
         }
 
+        void clearInnerData() {
+            amount = 0;
+            amounts.clear();
+            prices.clear();
+            endTime = 0;
+            isChange = true;
+            cacheAveragePrice = 0;
+            newestPrice = 0;
+        }
+
         double getAveragePrice() {
             if (isChange || cacheAveragePrice == 0) {
+                HLog.i("getAveragePrice", tradingPair, prices, amounts);
                 double all = 0;
                 for (int i = 0; i < prices.size(); i++) {
                     all += prices.get(i) * amounts.get(i);
@@ -363,6 +393,7 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
                 } catch (Exception e) {
                     // pass
                 }
+                isChange = false;
             }
             return cacheAveragePrice;
         }

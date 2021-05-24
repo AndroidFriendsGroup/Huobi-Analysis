@@ -11,9 +11,9 @@
         android:id="@+id/tv_currency"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:textAllCaps="true"
         android:textColor="@color/text_black1"
         android:textSize="@dimen/text_large"
-        android:textAllCaps="true"
         android:textStyle="bold"
         tools:text="BTC" />
 
@@ -22,76 +22,83 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"
+        android:gravity="center_vertical"
         android:orientation="horizontal">
 
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:gravity="left"
-            android:orientation="vertical">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="持仓数量"
-                android:textColor="@color/text_black3"
-                android:textSize="@dimen/text_small" />
-
-            <TextView
-                android:id="@+id/tv_amount"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:text="123"
-                android:textColor="@color/text_black2"
-                android:textSize="@dimen/number_small" />
-
-        </LinearLayout>
-
-        <LinearLayout
-            android:id="@+id/layout_cost"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:gravity="center"
+            android:layout_weight="2"
             android:orientation="vertical">
 
             <LinearLayout
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <ImageView
-                    android:layout_width="16dp"
-                    android:layout_height="16dp"
-                    android:src="@drawable/ic_refresh" />
+                android:orientation="vertical">
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginLeft="8dp"
-                    android:text="持仓成本"
-                    android:textColor="@color/text_black3"
-                    android:textSize="@dimen/text_small" />
+                    android:text="持仓数量"
+                    android:textColor="@color/text_black2"
+                    android:textSize="@dimen/text_normal" />
+
+                <TextView
+                    android:id="@+id/tv_amount"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="123"
+                    android:textColor="@color/text_black2"
+                    android:textSize="@dimen/number_small" />
+
             </LinearLayout>
 
-            <TextView
-                android:id="@+id/tv_cost"
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:id="@+id/layout_cost"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:text="123"
-                android:textColor="@color/text_black2"
-                android:textSize="@dimen/number_small" />
+                android:layout_marginTop="12dp"
+                android:orientation="vertical">
 
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <ImageView
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:src="@drawable/ic_refresh" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginLeft="8dp"
+                        android:text="持仓成本"
+                        android:textColor="@color/text_black3"
+                        android:textSize="@dimen/text_small" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/tv_cost"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="123"
+                    android:textColor="@color/text_black2"
+                    android:textSize="@dimen/number_small" />
+
+            </LinearLayout>
         </LinearLayout>
+
 
         <LinearLayout
             android:id="@+id/layout_income"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_gravity="bottom"
             android:layout_weight="1"
             android:gravity="right"
             android:orientation="vertical">

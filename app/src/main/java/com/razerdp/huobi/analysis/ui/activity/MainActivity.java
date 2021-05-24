@@ -141,6 +141,7 @@ public class MainActivity extends BaseActivity {
             public void onCall(UserInfo data) {
                 userInfo.isRefreshing = false;
                 mAdapter.notifyDataSetChanged();
+                requestAccountAssets(userInfo);
             }
 
             @Override

@@ -33,7 +33,6 @@ public class RetryHandler implements Function<Observable<? extends Throwable>, O
     public Observable<?> apply(@NotNull Observable<? extends Throwable> observable) throws Exception {
         return observable.flatMap((Function<Throwable, ObservableSource<?>>) throwable -> {
             if (maxRetryCount > 0) {
-                HLog.e(TAG, "重试请求", observable, maxRetryCount);
                 maxRetryCount--;
                 return Observable.timer(retryInterval, TimeUnit.MILLISECONDS);
             }

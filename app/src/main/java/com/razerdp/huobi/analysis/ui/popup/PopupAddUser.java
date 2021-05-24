@@ -71,6 +71,7 @@ public class PopupAddUser extends BasePopupWindow {
             dismiss();
             edName.setText("");
             edAccetKey.setText("");
+            edSecretKey.setText("");
         });
         tvAccetKeyPaste
                 .setOnClickListener(v -> {
