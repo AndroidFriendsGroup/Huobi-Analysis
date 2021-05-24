@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/white"
+    android:orientation="vertical"
+    tools:context="com.razerdp.huobi.analysis.ui.activity.MainActivity">
+
+    <com.razerdp.huobi.analysis.ui.widget.TitleBarView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="24dp">
+
+            <TextView
+                android:id="@+id/tv_desc"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:lineSpacingExtra="1.4dp"
+                android:lineSpacingMultiplier="1.4" />
+
+
+            <TextView
+                android:id="@+id/tv_step1"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="36dp"
+                android:textColor="@color/text_black2"
+                android:textSize="@dimen/text_normal" />
+
+            <ImageView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:src="@drawable/step1" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="二、 获取 API\n1、点击头像-点击“API管理”；"
+                android:textColor="@color/text_black2"
+                android:textSize="@dimen/text_normal" />
+
+            <ImageView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:src="@drawable/step2" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="2、创建API：自定义备注-勾选“读取”-点击“创建”；"
+                android:textColor="@color/text_black2"
+                android:textSize="@dimen/text_normal" />
+
+            <ImageView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:src="@drawable/step3" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="3、输入安全验证-点击“确认”即可创建成功。"
+                android:textColor="@color/text_black2"
+                android:textSize="@dimen/text_normal" />
+
+            <ImageView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:src="@drawable/step4" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="三、 复制并保存 API\n点击“Access Key”和“Secret Key”右侧的“复制”，并保存好。（注意：Secret Key 仅显示1次，遗失后不可找回，请务必妥善保存）"
+                android:textColor="@color/text_black2"
+                android:textSize="@dimen/text_normal" />
+
+            <ImageView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:src="@drawable/step5" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="四、 填写 API\n返回App端添加用户，输入账户备注名、Access Key 和 Secret Key 后，点击“确定”，即可授权成功。（注：API Key有效期是90天，过期后需要重新创建并重新授权）"
+                android:textColor="@color/text_black2"
+                android:textSize="@dimen/text_normal" />
+
+            <ImageView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:src="@drawable/step6" />
+
+            <ImageView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:src="@drawable/step7" />
+        </LinearLayout>
+    </ScrollView>
+
+</LinearLayout>

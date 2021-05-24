@@ -1,6 +1,8 @@
 plugins {
     id 'com.android.application'
 }
+Properties properties = new Properties()
+properties.load(project.rootProject.file('local.properties').newDataInputStream())
 
 android {
     compileSdkVersion 30
@@ -10,8 +12,8 @@ android {
         applicationId "com.razerdp.huobi_analysis"
         minSdkVersion 21
         targetSdkVersion 30
-        versionCode 1
-        versionName "1.0"
+        versionCode 2
+        versionName "1.1"
 
         renderscriptTargetApi 18
         renderscriptSupportModeEnabled true
@@ -28,11 +30,18 @@ android {
     }
 
     buildTypes {
+        debug {
+            String appid = properties.getProperty("pgy_appid")
+            manifestPlaceholders = [APPID: appid]
+        }
         release {
             minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            String appid = properties.getProperty("pgy_appid")
+            manifestPlaceholders = [APPID: appid]
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
+
     lintOptions {
         abortOnError false
     }
@@ -77,4 +86,6 @@ dependencies {
     annotationProcessor "com.jakewharton:butterknife-compiler:10.2.1"
     // time
     implementation "org.threeten:threetenbp:1.5.1"
+    // 蒲公英
+    implementation 'com.pgyersdk:sdk:3.0.10'
 }

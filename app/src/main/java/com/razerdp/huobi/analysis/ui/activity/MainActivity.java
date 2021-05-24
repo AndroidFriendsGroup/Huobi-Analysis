@@ -7,6 +7,10 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
+import com.pgyersdk.update.DownloadFileListener;
+import com.pgyersdk.update.PgyUpdateManager;
+import com.pgyersdk.update.UpdateManagerListener;
+import com.pgyersdk.update.javabean.AppBean;
 import com.razerdp.huobi.analysis.base.baseactivity.BaseActivity;
 import com.razerdp.huobi.analysis.base.baseadapter.BaseSimpleRecyclerViewHolder;
 import com.razerdp.huobi.analysis.base.baseadapter.SimpleRecyclerViewAdapter;
@@ -16,6 +20,7 @@ import com.razerdp.huobi.analysis.entity.UserInfo;
 import com.razerdp.huobi.analysis.ui.ActivityLauncher;
 import com.razerdp.huobi.analysis.ui.popup.PopupAddUser;
 import com.razerdp.huobi.analysis.ui.popup.PopupConfirm;
+import com.razerdp.huobi.analysis.ui.popup.PopupUpdate;
 import com.razerdp.huobi.analysis.ui.widget.DPRecyclerView;
 import com.razerdp.huobi.analysis.ui.widget.DPTextView;
 import com.razerdp.huobi.analysis.utils.ButterKnifeUtil;
@@ -28,6 +33,8 @@ import com.razerdp.huobi_analysis.R;
 
 import org.jetbrains.annotations.NotNull;
 
+import java.io.File;
+
 import butterknife.BindView;
 
 public class MainActivity extends BaseActivity {
@@ -38,6 +45,7 @@ public class MainActivity extends BaseActivity {
 
     PopupAddUser popupAddUser;
     PopupConfirm mPopupConfirm;
+    PopupUpdate mPopupUpdate;
 
     @Override
     public int contentViewLayoutId() {
@@ -59,6 +67,12 @@ public class MainActivity extends BaseActivity {
         });
         rvContent.setAdapter(mAdapter);
         refreshAccountAssets();
+        checkForUpdate();
+    }
+
+    @Override
+    public void onTitleRightClick(View view) {
+        checkForUpdate();
     }
 
     void refreshAccountAssets() {
@@ -145,6 +159,59 @@ public class MainActivity extends BaseActivity {
 
     }
 
+
+    private void checkForUpdate() {
+        new PgyUpdateManager.Builder()
+                .setUpdateManagerListener(new UpdateManagerListener() {
+                    @Override
+                    public void onNoUpdateAvailable() {
+                        UIHelper.toast("已经是最新版");
+                    }
+
+                    @Override
+                    public void onUpdateAvailable(AppBean appBean) {
+                        if (appBean == null) {
+                            UIHelper.toast("已经是最新版");
+                            return;
+                        }
+                        if (mPopupUpdate == null) {
+                            mPopupUpdate = new PopupUpdate(self());
+                        }
+                        mPopupUpdate.reset();
+                        mPopupUpdate.showPopupWindow(appBean);
+                    }
+
+                    @Override
+                    public void checkUpdateFailed(Exception e) {
+                        UIHelper.toast("已经是最新版");
+                    }
+                })
+                .setDownloadFileListener(new DownloadFileListener() {
+                    @Override
+                    public void downloadFailed() {
+                        //下载失败
+                        if (mPopupUpdate != null) {
+                            mPopupUpdate.onError();
+                        }
+                    }
+
+                    @Override
+                    public void downloadSuccessful(File file) {
+                        if (mPopupUpdate != null) {
+                            mPopupUpdate.dismiss(false);
+                        }
+                        PgyUpdateManager.installApk(file);
+                    }
+
+                    @Override
+                    public void onProgressUpdate(Integer... integers) {
+                        if (mPopupUpdate != null) {
+                            mPopupUpdate.onProgress(integers[0]);
+                        }
+                    }
+                })
+                .register();
+    }
 
     class Holder extends BaseSimpleRecyclerViewHolder<UserInfo> {
 

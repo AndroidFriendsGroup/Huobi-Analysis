@@ -22,10 +22,13 @@ import com.razerdp.huobi.analysis.net.response.order.HistoryOrderResponse;
 import com.razerdp.huobi.analysis.ui.widget.DPRecyclerView;
 import com.razerdp.huobi.analysis.utils.ButterKnifeUtil;
 import com.razerdp.huobi.analysis.utils.NumberUtils;
+import com.razerdp.huobi.analysis.utils.SpanUtil;
 import com.razerdp.huobi.analysis.utils.TimeUtil;
 import com.razerdp.huobi.analysis.utils.ToolUtil;
 import com.razerdp.huobi.analysis.utils.UIHelper;
+import com.razerdp.huobi.analysis.utils.rx.RxHelper;
 import com.razerdp.huobi_analysis.R;
+import com.rxjava.rxlife.RxLife;
 
 import org.jetbrains.annotations.NotNull;
 
@@ -36,7 +39,6 @@ import java.util.List;
 import java.util.Map;
 
 import butterknife.BindView;
-import io.reactivex.android.schedulers.AndroidSchedulers;
 import rxhttp.RxHttp;
 
 public class DetailActivity extends BaseActivity<DetailActivity.Data> {
@@ -112,7 +114,7 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
         RxHttp.get(AccountAssets.balanceApi(userInfo.accountId), userInfo)
                 .asResponse(BalanceResponse.class)
                 .retryWhen(new RetryHandler(10, 800))
-                .observeOn(AndroidSchedulers.mainThread())
+                .as(RxLife.asOnMain(self()))
                 .subscribe(new OnResponseListener<BalanceResponse>() {
                     @Override
                     public void onSuccess(@NotNull BalanceResponse balanceResponse) {
@@ -150,7 +152,7 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
                 .addQuery("end-time", detailInfo.endTime)
                 .asResponseList(HistoryOrderResponse.class)
                 .retryWhen(new RetryHandler(10, 500))
-                .observeOn(AndroidSchedulers.mainThread())
+                .as(RxLife.asOnMain(self()))
                 .subscribe(new OnResponseListener<List<HistoryOrderResponse>>() {
                     @Override
                     public void onSuccess(@NotNull List<HistoryOrderResponse> historyOrderResponses) {
@@ -196,7 +198,7 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
                 .addQuery("symbol", detailInfo.getRequestTradePairs())
                 .asResponseList(TradeResponse.class)
                 .retryWhen(new RetryHandler(10, 500))
-                .observeOn(AndroidSchedulers.mainThread())
+                .as(RxLife.asOnMain(self()))
                 .subscribe(new OnResponseListener<List<TradeResponse>>() {
                     @Override
                     public void onSuccess(@NotNull List<TradeResponse> tradeResponses) {
@@ -217,7 +219,7 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
                         detailInfo.newestPrice = data.price;
                         detailInfo.incomeMode = DetailInfo.MODE_IDLE;
                         mAdapter.notifyItemChanged(detailInfo);
-
+                        RxHelper.delay(3000, _void -> requestNewestPrice(detailInfo));
                     }
 
                     @Override
@@ -233,19 +235,23 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
 
         @BindView(R.id.tv_currency)
         TextView mTvCurrency;
-        @BindView(R.id.tv_refresh)
-        TextView mTvRefresh;
         @BindView(R.id.tv_amount)
         TextView mTvAmount;
         @BindView(R.id.tv_cost)
         TextView mTvCost;
         @BindView(R.id.tv_income)
         TextView mTvIncome;
+        @BindView(R.id.layout_cost)
+        View layoutCost;
+        @BindView(R.id.layout_income)
+        View layoutIncome;
+
 
         public Holder(@NonNull @NotNull View itemView) {
             super(itemView);
             ButterKnifeUtil.bind(this, itemView);
-            mTvRefresh.setOnClickListener(v -> requestCost(getData()));
+            layoutCost.setOnClickListener(v -> requestCost(getData()));
+            layoutIncome.setOnClickListener(v -> requestNewestPrice(getData()));
         }
 
         @Override
@@ -255,7 +261,16 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
 
         @Override
         public void onBindData(DetailInfo data, int position) {
-            mTvCurrency.setText(data.tradingPair);
+            if (data.newestPrice != 0) {
+                String formatted = String.format("%s usdt", NumberUtils.formatDecimal(data.newestPrice, 8));
+                SpanUtil.create(String.format("%s : %s", data.tradingPair, formatted))
+                        .append(formatted)
+                        .setTextColor(UIHelper.getColor(R.color.text_black3))
+                        .setTextSize(12)
+                        .into(mTvCurrency);
+            } else {
+                mTvCurrency.setText(data.tradingPair);
+            }
             mTvAmount.setText(NumberUtils.formatDecimal(data.myAmount, 4));
             switch (data.costMode) {
                 case DetailInfo.MODE_IDLE:
@@ -273,12 +288,14 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
                     double income = data.getIncome();
                     mTvIncome.setTextColor(income > 0 ? UIHelper.getColor(R.color.common_red) : UIHelper
                             .getColor(R.color.common_green));
-                    mTvIncome.setText(NumberUtils.formatDecimal(income, 8));
+                    mTvIncome.setText(NumberUtils.formatDecimal(income, 4));
                     break;
                 case DetailInfo.MODE_REFRESHING:
+                    mTvIncome.setTextColor(UIHelper.getColor(R.color.text_black2));
                     mTvIncome.setText("正在刷新");
                     break;
                 case DetailInfo.MODE_ERROR:
+                    mTvIncome.setTextColor(UIHelper.getColor(R.color.text_black2));
                     mTvIncome.setText("获取失败");
                     break;
             }

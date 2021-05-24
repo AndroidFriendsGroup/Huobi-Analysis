@@ -8,6 +8,8 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 
+import com.razerdp.huobi.analysis.ui.ActivityLauncher;
+import com.razerdp.huobi.analysis.ui.activity.GuideActivity;
 import com.razerdp.huobi.analysis.ui.widget.DPTextView;
 import com.razerdp.huobi.analysis.utils.ButterKnifeUtil;
 import com.razerdp.huobi.analysis.utils.ToolUtil;
@@ -81,10 +83,9 @@ public class PopupAddUser extends BasePopupWindow {
                     edSecretKey.setText(ToolUtil.getDataFromClipboard());
                     edSecretKey.setSelection(edSecretKey.length());
                 });
-        tvHow.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-            }
+        tvHow.setOnClickListener(v -> {
+            ActivityLauncher.start(getContext(), GuideActivity.class);
+            dismiss();
         });
     }
 

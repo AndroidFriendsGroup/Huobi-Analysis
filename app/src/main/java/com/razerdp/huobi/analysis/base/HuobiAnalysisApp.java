@@ -3,6 +3,7 @@ package com.razerdp.huobi.analysis.base;
 import android.app.Application;
 import android.content.Context;
 
+import com.pgyersdk.crash.PgyCrashManager;
 import com.razerdp.huobi.analysis.base.net.NetManager;
 
 /**
@@ -18,6 +19,7 @@ public class HuobiAnalysisApp extends Application {
     @Override
     public void onCreate() {
         super.onCreate();
+        PgyCrashManager.register();
         NetManager.INSTANCE.init();
     }
 }
