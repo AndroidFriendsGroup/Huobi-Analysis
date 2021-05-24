@@ -75,4 +75,6 @@ dependencies {
     // butterknife
     implementation "com.jakewharton:butterknife:10.2.1"
     annotationProcessor "com.jakewharton:butterknife-compiler:10.2.1"
+    // time
+    implementation "org.threeten:threetenbp:1.5.1"
 }

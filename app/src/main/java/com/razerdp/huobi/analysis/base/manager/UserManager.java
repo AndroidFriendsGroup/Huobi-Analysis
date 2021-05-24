@@ -11,7 +11,7 @@ import com.razerdp.huobi.analysis.net.api.account.AccountAssets;
 import com.razerdp.huobi.analysis.net.api.account.AccountInfo;
 import com.razerdp.huobi.analysis.net.response.account.AccountResponse;
 import com.razerdp.huobi.analysis.net.response.account.AssetsResponse;
-import com.razerdp.huobi.analysis.net.response.listener.OnResponseListener;
+import com.razerdp.huobi.analysis.base.net.listener.OnResponseListener;
 import com.razerdp.huobi.analysis.utils.SharedPreferencesUtils;
 import com.razerdp.huobi.analysis.utils.ToolUtil;
 import com.razerdp.huobi.analysis.utils.gson.GsonUtil;
@@ -77,7 +77,6 @@ public enum UserManager {
             return;
         }
         RxHttp.get(AccountInfo.accountInfoApi(), userInfo)
-                .sign()
                 .asResponseList(AccountResponse.class)
                 .retryWhen(new RetryHandler())
                 .observeOn(AndroidSchedulers.mainThread())
@@ -100,7 +99,6 @@ public enum UserManager {
                         callError(cb, e.hashCode(), e.getMessage());
                     }
                 });
-
     }
 
     public void requestUserAssets(UserInfo userInfo, @Nullable SimpleCallback<UserInfo> cb) {
@@ -111,7 +109,6 @@ public enum UserManager {
         RxHttp.get(AccountAssets.assetsApi(), userInfo)
                 .addQuery("accountType", Constants.AccountType.SPOT)
                 .addQuery("valuationCurrency", "CNY")
-                .sign()
                 .asResponse(AssetsResponse.class)
                 .retryWhen(new RetryHandler())
                 .observeOn(AndroidSchedulers.mainThread())

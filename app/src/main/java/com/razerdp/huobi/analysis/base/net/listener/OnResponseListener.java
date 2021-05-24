@@ -1,4 +1,4 @@
-package com.razerdp.huobi.analysis.net.response.listener;
+package com.razerdp.huobi.analysis.base.net.listener;
 
 import android.annotation.SuppressLint;
 

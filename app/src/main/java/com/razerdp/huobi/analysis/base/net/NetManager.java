@@ -1,21 +1,23 @@
 package com.razerdp.huobi.analysis.base.net;
 
 import android.annotation.SuppressLint;
-import android.os.SystemClock;
+import android.text.TextUtils;
 import android.util.Base64;
 
 import com.razerdp.huobi.analysis.base.net.exception.NetException;
 import com.razerdp.huobi.analysis.base.net.interceptor.HttpLoggingInterceptor;
+import com.razerdp.huobi.analysis.base.net.interceptor.SignInterceptor;
 import com.razerdp.huobi.analysis.entity.UserInfo;
 import com.razerdp.huobi.analysis.net.response.base.BaseResponse;
-import com.razerdp.huobi.analysis.net.response.listener.OnResponseListener;
 import com.razerdp.huobi.analysis.utils.StringUtil;
-import com.razerdp.huobi.analysis.utils.TimeUtil;
 import com.razerdp.huobi.analysis.utils.log.HLog;
 import com.razerdp.huobi.analysis.utils.rx.RxHelper;
 import com.razerdp.huobi.analysis.utils.rx.RxTaskCall;
 
 import org.jetbrains.annotations.NotNull;
+import org.threeten.bp.Instant;
+import org.threeten.bp.ZoneId;
+import org.threeten.bp.format.DateTimeFormatter;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -28,19 +30,21 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
+import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
+import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
-import rxhttp.RxHttp;
 import rxhttp.RxHttpPlugins;
 import rxhttp.wrapper.annotation.DefaultDomain;
 import rxhttp.wrapper.annotation.Param;
@@ -48,7 +52,6 @@ import rxhttp.wrapper.annotation.Parser;
 import rxhttp.wrapper.annotations.Nullable;
 import rxhttp.wrapper.entity.KeyValuePair;
 import rxhttp.wrapper.param.AbstractParam;
-import rxhttp.wrapper.param.FormParam;
 import rxhttp.wrapper.param.Method;
 import rxhttp.wrapper.parse.AbstractParser;
 import rxhttp.wrapper.ssl.HttpsUtils;
@@ -62,16 +65,6 @@ import rxhttp.wrapper.utils.Converter;
 public enum NetManager {
     INSTANCE;
     String[] apis = {"api.huobi.pro", "api-aws.huobi.pro", "api.huobi.de.com"};
-    long systemElapsedRealtime;
-    long huobiNetTime;
-
-    public long curTime() {
-        if (huobiNetTime == 0) {
-            return System.currentTimeMillis();
-        } else {
-            return huobiNetTime + (SystemClock.elapsedRealtime() - systemElapsedRealtime);
-        }
-    }
 
     public static class Url {
 
@@ -85,18 +78,6 @@ public enum NetManager {
     public void init() {
         RxHttpPlugins.init(getDefaultOkHttpClient());
         ping();
-        RxHttp.get("/v1/common/timestamp")
-                .asMap(String.class, Object.class)
-                .subscribe(new OnResponseListener<Map<String, Object>>() {
-                    @Override
-                    public void onSuccess(@NotNull Map<String, Object> map) {
-                        Object time = map.get("data");
-                        if (time instanceof Double) {
-                            huobiNetTime = ((Double) time).longValue();
-                            systemElapsedRealtime = SystemClock.elapsedRealtime();
-                        }
-                    }
-                });
     }
 
     private static OkHttpClient getDefaultOkHttpClient() {
@@ -107,6 +88,7 @@ public enum NetManager {
                 .writeTimeout(10, TimeUnit.SECONDS)
                 .sslSocketFactory(sslParams.sSLSocketFactory, sslParams.trustManager)
                 .hostnameVerifier((hostname, session) -> true)
+                .addInterceptor(new SignInterceptor())
                 .addInterceptor(new HttpLoggingInterceptor())
                 .build();
     }
@@ -206,42 +188,16 @@ public enum NetManager {
 
         UserInfo getUserInfo();
 
-        String getCurApi();
-    }
-
-    @Param(methodName = "post")
-    public static class PostSignParam extends FormParam implements BaseParam {
-
-        UserInfo userInfo;
-        String curApi;
-
-        public PostSignParam(String url, UserInfo userInfo) {
-            super(url, rxhttp.wrapper.param.Method.POST);
-            this.userInfo = userInfo;
-            this.curApi = INSTANCE.simpleApi();
-        }
-
-        @Override
-        public UserInfo getUserInfo() {
-            return userInfo;
-        }
-
-        @Override
-        public String getCurApi() {
-            return curApi;
-        }
     }
 
     @Param(methodName = "get")
     public static class GetSignParam extends AbstractParam<GetSignParam> implements BaseParam {
 
         UserInfo userInfo;
-        String curApi;
 
         public GetSignParam(String url, UserInfo userInfo) {
             super(url, Method.GET);
             this.userInfo = userInfo;
-            this.curApi = INSTANCE.simpleApi();
         }
 
         @Override
@@ -249,10 +205,6 @@ public enum NetManager {
             return userInfo;
         }
 
-        @Override
-        public String getCurApi() {
-            return curApi;
-        }
 
         @Override
         public GetSignParam add(String key, @Nullable Object value) {
@@ -260,35 +212,35 @@ public enum NetManager {
         }
 
         @Override
+        public GetSignParam removeAllQuery(String key) {
+            final List<KeyValuePair> pairs = getQueryParam();
+            if (pairs != null) {
+                Iterator<KeyValuePair> iterator = pairs.iterator();
+                while (iterator.hasNext()) {
+                    KeyValuePair next = iterator.next();
+                    if (TextUtils.equals(next.getKey(), key)) {
+                        iterator.remove();
+                    }
+
+                }
+            }
+            return this;
+        }
+
+        @Override
         public final RequestBody getRequestBody() {
             return null;
         }
 
-        public GetSignParam sign() {
-            Sign.sign(this);
-            return this;
+        @Override
+        public <T> GetSignParam tag(Class<? super T> type, T tag) {
+            Sign.appendParams(this);
+            return super.tag(type, tag);
         }
-
-    }
-
-    public void test() {
-        UserInfo userInfo = new UserInfo("b921733d-a2794daf-cb171f7c-bg2hyw2dfg",
-                                         "e0e7ae45-78660353-60678e79-345bf");
-        userInfo.accountId = 16936884;
-    }
-
-    public void testSign() {
-        StringBuilder builder = new StringBuilder();
-        builder.append("GET").append('\n')
-                .append("api.huobi.pro").append('\n')
-                .append("/v2/account/asset-valuation").append('\n')
-                .append("AccessKeyId=b921733d-a2794daf-cb171f7c-bg2hyw2dfg&SignatureMethod=HmacSHA256&SignatureVersion=2&Timestamp=2021-05-22T18%3A20%3A12&accountType=spot&valuationCurrency=CNY");
-        HLog.i("testSign", Sign.signInternal(builder.toString(), Sign.V1.SIGN_METHOD_VALUE,
-                                             "e0e7ae45-78660353-60678e79-345bf"));
     }
 
     // https://huobiapi.github.io/docs/spot/v1/cn/#c64cd15fdc
-    static class Sign {
+    public static class Sign {
 
         static class V1 {
 
@@ -299,6 +251,7 @@ public enum NetManager {
             public static final String SIGN_METHOD = "SignatureMethod";
             public static final String SIGN_METHOD_VALUE = "HmacSHA256";
             public static final String SIGN = "Signature";
+            public static final String INTERNAL_SECRET_KEY = "SecretKey";
         }
 
         static class V2 {
@@ -312,51 +265,52 @@ public enum NetManager {
             public static final String SIGN = "signature";
         }
 
-        public static void sign(BaseParam param) {
-            AbstractParam requestParam = (AbstractParam) param;
+        private static final DateTimeFormatter DT_FORMAT = DateTimeFormatter
+                .ofPattern("uuuu-MM-dd'T'HH:mm:ss");
+        private static final ZoneId ZONE_GMT = ZoneId.of("Z");
+
+        public static Request sign(Request request) {
+            HttpUrl url = request.url();
+            HttpUrl.Builder urlBuilder = url.newBuilder();
             StringBuilder builder = new StringBuilder();
-            builder.append(requestParam.getMethod().toString()).append('\n')
-                    .append(param.getCurApi()).append('\n')
-                    .append(requestParam.getSimpleUrl()).append('\n');
-//            boolean isV2 = requestParam.getSimpleUrl().toLowerCase().contains("v2");
-            signV1(builder, param);
+            builder.append(request.method().toUpperCase()).append('\n')
+                    .append(url.host()).append('\n')
+                    .append(url.encodedPath()).append('\n');
+            List<KeyValuePair> params = new ArrayList<>();
+            String secretKey = url.queryParameter(V1.INTERNAL_SECRET_KEY);
+            if (TextUtils.isEmpty(secretKey)) {
+                return request;
+            }
+            params.add(new KeyValuePair(V1.TIME, timeStamp()));
+            for (String key : url.queryParameterNames()) {
+                if (!TextUtils.equals(key, V1.INTERNAL_SECRET_KEY)) {
+                    params.add(new KeyValuePair(key, url.queryParameter(key)));
+                }
+            }
+            Collections.sort(params, COMPARATOR);
+            for (KeyValuePair param : params) {
+                urlBuilder.setEncodedQueryParameter(param.getKey(), encode(param.getValue()));
+            }
+            urlBuilder.removeAllEncodedQueryParameters(V1.INTERNAL_SECRET_KEY);
+            builder.append(getSignString(params));
+            HLog.i("sign", builder);
+            urlBuilder.setEncodedQueryParameter(V1.SIGN, signInternal(builder.toString(),
+                    V1.SIGN_METHOD_VALUE,
+                    secretKey));
+            return request.newBuilder().url(urlBuilder.build()).build();
         }
 
-        @SuppressWarnings("ConstantConditions")
-        static void signV1(StringBuilder builder, BaseParam param) {
+        static void appendParams(BaseParam param) {
             AbstractParam requestParam = (AbstractParam) param;
-            requestParam.add(V1.ACC_ID, param.getUserInfo().accetKey);
-            requestParam.add(V1.SIGN_METHOD, V1.SIGN_METHOD_VALUE);
-            requestParam.add(V1.SIGN_VER, V1.SIGN_VER_VALUE);
-            requestParam.add(V1.TIME,
-                             TimeUtil.longToTimeStr(INSTANCE.curTime(),
-                                                    TimeUtil.YYYYMMDDTHHMMSS));
-            builder.append(sortAndEncode(requestParam.getQueryParam()));
-            HLog.i("signV1", builder);
-            requestParam
-                    .addEncodedQuery(V1.SIGN, signInternal(builder.toString(), V1.SIGN_METHOD_VALUE,
-                                                           param.getUserInfo().secretKey));
+            requestParam.setQuery(V1.ACC_ID, param.getUserInfo().accetKey);
+            requestParam.setQuery(V1.SIGN_METHOD, V1.SIGN_METHOD_VALUE);
+            requestParam.setQuery(V1.SIGN_VER, V1.SIGN_VER_VALUE);
+            requestParam.setQuery(V1.INTERNAL_SECRET_KEY, param.getUserInfo().secretKey);
         }
 
-        @SuppressWarnings("ConstantConditions")
-        static void signV2(StringBuilder builder, BaseParam param) {
-            AbstractParam requestParam = (AbstractParam) param;
-            requestParam.add(V2.ACC_ID, param.getUserInfo().accetKey);
-            requestParam.add(V2.SIGN_METHOD, V2.SIGN_METHOD_VALUE);
-            requestParam.add(V2.SIGN_VER, V2.SIGN_VER_VALUE);
-            requestParam.add(V2.TIME,
-                             TimeUtil.longToTimeStr(INSTANCE.curTime(),
-                                                    TimeUtil.YYYYMMDDTHHMMSS));
-            builder.append(sortAndEncode(requestParam.getQueryParam()));
-            HLog.i("signV2", builder);
-            requestParam
-                    .addEncodedQuery(V2.SIGN, signInternal(builder.toString(), V2.SIGN_METHOD_VALUE,
-                                                           param.getUserInfo().secretKey));
-        }
 
-        static String sortAndEncode(List<KeyValuePair> keyValues) {
+        static String getSignString(List<KeyValuePair> keyValues) {
             StringBuilder builder = new StringBuilder();
-            Collections.sort(keyValues, COMPARATOR);
             for (KeyValuePair keyValue : keyValues) {
                 builder.append("&")
                         .append(keyValue.getKey())
@@ -382,7 +336,7 @@ public enum NetManager {
             try {
                 hmacSha256 = Mac.getInstance(signType);
                 SecretKeySpec secKey = new SecretKeySpec(secretKey.getBytes(StandardCharsets.UTF_8),
-                                                         signType);
+                        signType);
                 hmacSha256.init(secKey);
                 byte[] hash = hmacSha256.doFinal(from.getBytes(StandardCharsets.UTF_8));
                 return Base64.encodeToString(hash, Base64.DEFAULT);
@@ -395,6 +349,10 @@ public enum NetManager {
         static Comparator<KeyValuePair> COMPARATOR = (o1, o2) -> o1.getKey().compareTo(
                 o2.getKey());
 
-
+        static String timeStamp() {
+            return Instant.ofEpochSecond(Instant.now().getEpochSecond())
+                    .atZone(ZONE_GMT)
+                    .format(DT_FORMAT);
+        }
     }
 }

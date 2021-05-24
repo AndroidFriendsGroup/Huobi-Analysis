@@ -4,6 +4,9 @@ import android.graphics.Typeface;
 import android.view.View;
 import android.widget.TextView;
 
+import androidx.annotation.NonNull;
+import androidx.recyclerview.widget.LinearLayoutManager;
+
 import com.razerdp.huobi.analysis.base.baseactivity.BaseActivity;
 import com.razerdp.huobi.analysis.base.baseadapter.BaseSimpleRecyclerViewHolder;
 import com.razerdp.huobi.analysis.base.baseadapter.SimpleRecyclerViewAdapter;
@@ -20,12 +23,11 @@ import com.razerdp.huobi.analysis.utils.SpanUtil;
 import com.razerdp.huobi.analysis.utils.StringUtil;
 import com.razerdp.huobi.analysis.utils.UIHelper;
 import com.razerdp.huobi.analysis.utils.ViewUtil;
+import com.razerdp.huobi.analysis.utils.rx.RxHelper;
 import com.razerdp.huobi_analysis.R;
 
 import org.jetbrains.annotations.NotNull;
 
-import androidx.annotation.NonNull;
-import androidx.recyclerview.widget.LinearLayoutManager;
 import butterknife.BindView;
 
 public class MainActivity extends BaseActivity {
@@ -100,10 +102,10 @@ public class MainActivity extends BaseActivity {
             });
         }
         mPopupConfirm.setTips(SpanUtil.create("确定删除用户：" + userInfo.name + "吗？")
-                                      .append(userInfo.name)
-                                      .setTextColor(UIHelper.getColor(R.color.common_red_light))
-                                      .setTextStyle(Typeface.DEFAULT_BOLD)
-                                      .getSpannableStringBuilder());
+                .append(userInfo.name)
+                .setTextColor(UIHelper.getColor(R.color.common_red_light))
+                .setTextStyle(Typeface.DEFAULT_BOLD)
+                .getSpannableStringBuilder());
         mPopupConfirm.showPopupWindow();
     }
 
@@ -137,16 +139,12 @@ public class MainActivity extends BaseActivity {
             @Override
             public void onCall(UserInfo data) {
                 mAdapter.notifyItemChanged(data);
+                RxHelper.delay(5000, data1 -> requestAccountAssets(userInfo));
             }
         });
 
     }
 
-    @Override
-    protected void onResume() {
-        super.onResume();
-        refreshAccountAssets();
-    }
 
     class Holder extends BaseSimpleRecyclerViewHolder<UserInfo> {
 

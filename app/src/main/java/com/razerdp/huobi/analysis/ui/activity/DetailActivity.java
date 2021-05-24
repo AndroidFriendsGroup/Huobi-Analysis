@@ -3,22 +3,28 @@ package com.razerdp.huobi.analysis.ui.activity;
 import android.view.View;
 import android.widget.TextView;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.recyclerview.widget.LinearLayoutManager;
+
 import com.razerdp.huobi.analysis.base.baseactivity.BaseActivity;
 import com.razerdp.huobi.analysis.base.baseadapter.BaseSimpleRecyclerViewHolder;
 import com.razerdp.huobi.analysis.base.baseadapter.SimpleRecyclerViewAdapter;
-import com.razerdp.huobi.analysis.base.net.NetManager;
+import com.razerdp.huobi.analysis.base.net.listener.OnResponseListener;
 import com.razerdp.huobi.analysis.base.net.retry.RetryHandler;
 import com.razerdp.huobi.analysis.entity.UserInfo;
 import com.razerdp.huobi.analysis.net.api.account.AccountAssets;
+import com.razerdp.huobi.analysis.net.api.market.Trade;
 import com.razerdp.huobi.analysis.net.api.order.History;
 import com.razerdp.huobi.analysis.net.response.account.BalanceResponse;
-import com.razerdp.huobi.analysis.net.response.listener.OnResponseListener;
+import com.razerdp.huobi.analysis.net.response.market.TradeResponse;
 import com.razerdp.huobi.analysis.net.response.order.HistoryOrderResponse;
 import com.razerdp.huobi.analysis.ui.widget.DPRecyclerView;
 import com.razerdp.huobi.analysis.utils.ButterKnifeUtil;
 import com.razerdp.huobi.analysis.utils.NumberUtils;
 import com.razerdp.huobi.analysis.utils.TimeUtil;
 import com.razerdp.huobi.analysis.utils.ToolUtil;
+import com.razerdp.huobi.analysis.utils.UIHelper;
 import com.razerdp.huobi_analysis.R;
 
 import org.jetbrains.annotations.NotNull;
@@ -29,9 +35,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-import androidx.recyclerview.widget.LinearLayoutManager;
 import butterknife.BindView;
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import rxhttp.RxHttp;
@@ -107,7 +110,6 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
         mTvState.setVisibility(View.VISIBLE);
         mTvState.setText("正在获取现货余额...");
         RxHttp.get(AccountAssets.balanceApi(userInfo.accountId), userInfo)
-                .sign()
                 .asResponse(BalanceResponse.class)
                 .retryWhen(new RetryHandler(10, 800))
                 .observeOn(AndroidSchedulers.mainThread())
@@ -136,13 +138,16 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
             detailInfo.costMode = DetailInfo.MODE_REFRESHING;
             mAdapter.notifyItemChanged(detailInfo);
         }
+        if (detailInfo.incomeMode != DetailInfo.MODE_REFRESHING) {
+            detailInfo.incomeMode = DetailInfo.MODE_REFRESHING;
+            mAdapter.notifyItemChanged(detailInfo);
+        }
         if (detailInfo.endTime == 0) {
-            detailInfo.endTime = NetManager.INSTANCE.curTime();
+            detailInfo.endTime = System.currentTimeMillis();
         }
         RxHttp.get(History.historyOrders(), userInfo)
                 .addQuery("symbol", detailInfo.getRequestTradePairs())
                 .addQuery("end-time", detailInfo.endTime)
-                .sign()
                 .asResponseList(HistoryOrderResponse.class)
                 .retryWhen(new RetryHandler(10, 500))
                 .observeOn(AndroidSchedulers.mainThread())
@@ -167,6 +172,7 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
                             detailInfo.getAveragePrice();
                             detailInfo.costMode = DetailInfo.MODE_IDLE;
                             mAdapter.notifyItemChanged(detailInfo);
+                            requestNewestPrice(detailInfo);
                         }
                     }
 
@@ -174,10 +180,53 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
                     public void onError(String errorCode, @NotNull Throwable e) {
                         super.onError(errorCode, e);
                         detailInfo.costMode = DetailInfo.MODE_ERROR;
+                        detailInfo.incomeMode = DetailInfo.MODE_ERROR;
                         mAdapter.notifyItemChanged(detailInfo);
                     }
                 });
 
+    }
+
+    // 获取最新价格
+    void requestNewestPrice(DetailInfo detailInfo) {
+        if (detailInfo == null) {
+            return;
+        }
+        RxHttp.get(Trade.newestTrade(), userInfo)
+                .addQuery("symbol", detailInfo.getRequestTradePairs())
+                .asResponseList(TradeResponse.class)
+                .retryWhen(new RetryHandler(10, 500))
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(new OnResponseListener<List<TradeResponse>>() {
+                    @Override
+                    public void onSuccess(@NotNull List<TradeResponse> tradeResponses) {
+                        if (ToolUtil.isEmpty(tradeResponses)) {
+                            detailInfo.newestPrice = 0;
+                            detailInfo.incomeMode = DetailInfo.MODE_ERROR;
+                            mAdapter.notifyItemChanged(detailInfo);
+                            return;
+                        }
+                        TradeResponse rep = tradeResponses.get(0);
+                        if (ToolUtil.isEmpty(rep.data)) {
+                            detailInfo.newestPrice = 0;
+                            detailInfo.incomeMode = DetailInfo.MODE_ERROR;
+                            mAdapter.notifyItemChanged(detailInfo);
+                            return;
+                        }
+                        TradeResponse.TradeInfo data = rep.data.get(0);
+                        detailInfo.newestPrice = data.price;
+                        detailInfo.incomeMode = DetailInfo.MODE_IDLE;
+                        mAdapter.notifyItemChanged(detailInfo);
+
+                    }
+
+                    @Override
+                    public void onError(String errorCode, @NotNull Throwable e) {
+                        super.onError(errorCode, e);
+                        detailInfo.incomeMode = DetailInfo.MODE_ERROR;
+                        mAdapter.notifyItemChanged(detailInfo);
+                    }
+                });
     }
 
     class Holder extends BaseSimpleRecyclerViewHolder<DetailInfo> {
@@ -221,7 +270,10 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
             }
             switch (data.incomeMode) {
                 case DetailInfo.MODE_IDLE:
-                    mTvIncome.setText(NumberUtils.formatDecimal(data.getAveragePrice(), 8));
+                    double income = data.getIncome();
+                    mTvIncome.setTextColor(income > 0 ? UIHelper.getColor(R.color.common_red) : UIHelper
+                            .getColor(R.color.common_green));
+                    mTvIncome.setText(NumberUtils.formatDecimal(income, 8));
                     break;
                 case DetailInfo.MODE_REFRESHING:
                     mTvIncome.setText("正在刷新");
@@ -251,6 +303,7 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
         long endTime;
         boolean isChange;
         double cacheAveragePrice;
+        double newestPrice;
 
         public DetailInfo() {
             amounts = new ArrayList<>();
@@ -282,6 +335,11 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
             }
             return cacheAveragePrice;
         }
+
+        double getIncome() {
+            return myAmount * (newestPrice - cacheAveragePrice);
+        }
+
     }
 
     public static class Data extends BaseActivity.IntentData {
@@ -295,6 +353,6 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
     }
 
     private Comparator<DetailInfo> mComparator = (o1, o2) -> -Double.compare(o1.myAmount,
-                                                                             o2.myAmount);
+            o2.myAmount);
 
 }

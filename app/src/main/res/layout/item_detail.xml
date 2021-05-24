@@ -113,7 +113,7 @@
                 android:layout_height="wrap_content"
                 android:textSize="@dimen/text_small"
                 android:textColor="@color/text_black3"
-                android:text="收益"
+                android:text="收益（USDT）"
                 />
 
             <TextView
