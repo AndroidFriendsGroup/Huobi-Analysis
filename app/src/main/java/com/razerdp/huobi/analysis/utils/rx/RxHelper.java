@@ -146,10 +146,13 @@ public class RxHelper {
                 }, errorConsumer);
     }
 
+    public static Disposable loop(long startDelay, long interval, @NonNull RxCall<Long> call) {
+        return Flowable.interval(startDelay, interval, TimeUnit.MILLISECONDS)
+                .subscribe(call::onCall, new DefaultLogThrowableConsumer());
+    }
 
     public static Disposable delay(long delayTime, @NonNull RxCall<Long> call) {
         return delay(delayTime, TimeUnit.MILLISECONDS, call);
-
     }
 
     public static Disposable delay(long delayTime, TimeUnit unit, @NonNull RxCall<Long> call) {
@@ -159,12 +162,7 @@ public class RxHelper {
     public static Disposable delay(long delayTime, TimeUnit unit, @NonNull final RxCall<Long> call, @NonNull Consumer<Throwable> errorConsumer) {
         return Flowable.timer(delayTime, unit)
                 .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(new Consumer<Long>() {
-                    @Override
-                    public void accept(Long aLong) throws Exception {
-                        call.onCall(aLong);
-                    }
-                }, errorConsumer);
+                .subscribe(call::onCall, errorConsumer);
     }
 
 }

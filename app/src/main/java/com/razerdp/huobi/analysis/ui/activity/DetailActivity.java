@@ -35,10 +35,12 @@ import org.jetbrains.annotations.NotNull;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import butterknife.BindView;
+import io.reactivex.disposables.Disposable;
 import rxhttp.RxHttp;
 
 public class DetailActivity extends BaseActivity<DetailActivity.Data> {
@@ -50,9 +52,9 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
     DPRecyclerView rvContent;
 
     UserInfo userInfo;
-    int mode;
 
     SimpleRecyclerViewAdapter<DetailInfo> mAdapter;
+    Map<String, Disposable> disposableMap;
 
     @Override
     protected boolean onCheckIntentDataValidate(
@@ -71,6 +73,7 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
 
     @Override
     protected void onInitView(View decorView) {
+        disposableMap = new HashMap<>();
         setTitle("用户：" + userInfo.name);
         mTvState.setOnClickListener(v -> requestBalance());
         requestBalance();
@@ -89,6 +92,7 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
             mAdapter.setHolder(Holder.class);
             mAdapter.outher(this);
             rvContent.setLayoutManager(new LinearLayoutManager(this));
+            rvContent.setItemAnimator(null);
             rvContent.setAdapter(mAdapter);
         }
         for (DetailInfo data : mAdapter.getDatas()) {
@@ -219,7 +223,9 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
                         detailInfo.newestPrice = data.price;
                         detailInfo.incomeMode = DetailInfo.MODE_IDLE;
                         mAdapter.notifyItemChanged(detailInfo);
-                        RxHelper.delay(3000, _void -> requestNewestPrice(detailInfo));
+                        if (disposableMap.get(detailInfo.tradingPair) == null) {
+                            disposableMap.put(detailInfo.tradingPair, RxHelper.loop(3000, 3000, _void -> requestNewestPrice(detailInfo)));
+                        }
                     }
 
                     @Override
@@ -229,6 +235,14 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
                         mAdapter.notifyItemChanged(detailInfo);
                     }
                 });
+    }
+
+    @Override
+    protected void onDestroy() {
+        for (Disposable value : disposableMap.values()) {
+            value.dispose();
+        }
+        super.onDestroy();
     }
 
     class Holder extends BaseSimpleRecyclerViewHolder<DetailInfo> {

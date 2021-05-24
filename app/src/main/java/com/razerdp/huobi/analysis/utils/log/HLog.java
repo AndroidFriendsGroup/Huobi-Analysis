@@ -3,6 +3,8 @@ package com.razerdp.huobi.analysis.utils.log;
 import android.text.TextUtils;
 import android.util.Log;
 
+import com.razerdp.huobi_analysis.BuildConfig;
+
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -27,7 +29,7 @@ public class HLog {
     }
 
 
-    private static final AtomicBoolean sLOG = new AtomicBoolean(true);
+    private static final AtomicBoolean sLOG = new AtomicBoolean(BuildConfig.DEBUG);
     private static final String TAG = "Hlog";
 
     //logcat最大长度为4*1024，此处取4000

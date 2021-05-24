@@ -34,8 +34,11 @@ import com.razerdp.huobi_analysis.R;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
+import java.util.HashMap;
+import java.util.Map;
 
 import butterknife.BindView;
+import io.reactivex.disposables.Disposable;
 
 public class MainActivity extends BaseActivity {
 
@@ -47,6 +50,8 @@ public class MainActivity extends BaseActivity {
     PopupConfirm mPopupConfirm;
     PopupUpdate mPopupUpdate;
 
+    Map<String, Disposable> disposableMap;
+
     @Override
     public int contentViewLayoutId() {
         return R.layout.activity_main;
@@ -54,11 +59,13 @@ public class MainActivity extends BaseActivity {
 
     @Override
     protected void onInitView(View decorView) {
+        disposableMap = new HashMap<>();
         mAdapter = new SimpleRecyclerViewAdapter<>(this, UserManager.INSTANCE.getUsers());
         mAdapter.setHolder(Holder.class);
         mAdapter.outher(this);
         rvContent.setLayoutManager(new LinearLayoutManager(this));
         rvContent.addFooterView(inflateFooterView());
+        rvContent.setItemAnimator(null);
         mAdapter.setOnItemClickListener(
                 (v, position, data) -> ActivityLauncher.toDetail(self(), data));
         mAdapter.setOnItemLongClickListener((v, position, data) -> {
@@ -153,7 +160,9 @@ public class MainActivity extends BaseActivity {
             @Override
             public void onCall(UserInfo data) {
                 mAdapter.notifyItemChanged(data);
-                RxHelper.delay(5000, data1 -> requestAccountAssets(userInfo));
+                if (disposableMap.get(userInfo.accetKey) == null) {
+                    disposableMap.put(userInfo.accetKey, RxHelper.loop(5000, 5000, data1 -> requestAccountAssets(userInfo)));
+                }
             }
         });
 
@@ -213,6 +222,14 @@ public class MainActivity extends BaseActivity {
                 .register();
     }
 
+    @Override
+    protected void onDestroy() {
+        for (Disposable value : disposableMap.values()) {
+            value.dispose();
+        }
+        super.onDestroy();
+    }
+
     class Holder extends BaseSimpleRecyclerViewHolder<UserInfo> {
 
         @BindView(R.id.tv_name)
@@ -225,11 +242,20 @@ public class MainActivity extends BaseActivity {
         DPTextView tvNoAccountId;
         @BindView(R.id.tv_refreshing)
         TextView tvRefreshing;
+        @BindView(R.id.layout_name)
+        View layoutName;
 
         public Holder(@NonNull @NotNull View itemView) {
             super(itemView);
             ButterKnifeUtil.bind(this, itemView);
             tvNoAccountId.setOnClickListener(v -> requestUserAccount(getData()));
+            layoutName.setOnClickListener(v -> {
+                if (getData().accountId != 0) {
+                    requestAccountAssets(getData());
+                } else {
+                    requestUserAccount(getData());
+                }
+            });
         }
 
         @Override
