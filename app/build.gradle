@@ -1,8 +1,13 @@
 plugins {
     id 'com.android.application'
 }
-Properties properties = new Properties()
-properties.load(project.rootProject.file('local.properties').newDataInputStream())
+
+def getAppid() {
+    Properties properties = new Properties()
+    properties.load(project.rootProject.file('local.properties').newDataInputStream())
+    String result = properties.getProperty("pgy_appid")
+    return result == null ? "" : result
+}
 
 android {
     compileSdkVersion 30
@@ -31,13 +36,11 @@ android {
 
     buildTypes {
         debug {
-            String appid = properties.getProperty("pgy_appid")
-            manifestPlaceholders = [APPID: appid]
+            manifestPlaceholders = [APPID: getAppid()]
         }
         release {
             minifyEnabled false
-            String appid = properties.getProperty("pgy_appid")
-            manifestPlaceholders = [APPID: appid]
+            manifestPlaceholders = [APPID: getAppid()]
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
