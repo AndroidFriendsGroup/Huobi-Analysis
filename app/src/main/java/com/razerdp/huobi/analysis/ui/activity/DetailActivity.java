@@ -232,7 +232,10 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
                         detailInfo.incomeMode = DetailInfo.MODE_IDLE;
                         mAdapter.notifyItemChanged(detailInfo);
                         if (disposableMap.get(detailInfo.tradingPair) == null) {
-                            disposableMap.put(detailInfo.tradingPair, RxHelper.loop(3000, 3000, _void -> requestNewestPrice(detailInfo)));
+                            // 总价值大于2个usdt才自动更新
+                            if (detailInfo.newestPrice * detailInfo.myAmount > 2) {
+                                disposableMap.put(detailInfo.tradingPair, RxHelper.loop(3000, 3000, _void -> requestNewestPrice(detailInfo)));
+                            }
                         }
                     }
 

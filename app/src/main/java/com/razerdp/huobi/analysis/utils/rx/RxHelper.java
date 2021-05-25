@@ -122,6 +122,11 @@ public class RxHelper {
                     public void accept(T t) throws Exception {
                         call.onResult(t);
                     }
+                }, new Consumer<Throwable>() {
+                    @Override
+                    public void accept(Throwable throwable) throws Exception {
+                        call.onError(throwable);
+                    }
                 });
 
     }

@@ -2,17 +2,20 @@ package com.razerdp.huobi.analysis.base.manager;
 
 import android.text.TextUtils;
 
+import androidx.annotation.Nullable;
+
 import com.razerdp.huobi.analysis.base.Constants;
 import com.razerdp.huobi.analysis.base.interfaces.ExtSimpleCallback;
 import com.razerdp.huobi.analysis.base.interfaces.SimpleCallback;
+import com.razerdp.huobi.analysis.base.net.listener.OnResponseListener;
 import com.razerdp.huobi.analysis.base.net.retry.RetryHandler;
 import com.razerdp.huobi.analysis.entity.UserInfo;
 import com.razerdp.huobi.analysis.net.api.account.AccountAssets;
 import com.razerdp.huobi.analysis.net.api.account.AccountInfo;
 import com.razerdp.huobi.analysis.net.response.account.AccountResponse;
 import com.razerdp.huobi.analysis.net.response.account.AssetsResponse;
-import com.razerdp.huobi.analysis.base.net.listener.OnResponseListener;
 import com.razerdp.huobi.analysis.utils.SharedPreferencesUtils;
+import com.razerdp.huobi.analysis.utils.StringUtil;
 import com.razerdp.huobi.analysis.utils.ToolUtil;
 import com.razerdp.huobi.analysis.utils.gson.GsonUtil;
 import com.razerdp.huobi.analysis.utils.rx.RxHelper;
@@ -20,9 +23,10 @@ import com.razerdp.huobi.analysis.utils.rx.RxHelper;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
-import androidx.annotation.Nullable;
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import rxhttp.RxHttp;
 
@@ -34,29 +38,37 @@ import rxhttp.RxHttp;
 public enum UserManager {
     INSTANCE;
 
-    List<UserInfo> userInfos = new ArrayList<>();
+    Map<String, UserInfo> usersMap = new HashMap<>();
 
     public List<UserInfo> getUsers() {
-        List<UserInfo> locals = GsonUtil.INSTANCE
-                .toArrayList(SharedPreferencesUtils.getString("users", ""), UserInfo.class);
-        if (!ToolUtil.isEmpty(locals)) {
-            userInfos.addAll(locals);
+        String usersOld = SharedPreferencesUtils.getString("users", "");
+        String usersNew = SharedPreferencesUtils.getString("users_new", "");
+        if (StringUtil.noEmpty(usersOld)) {
+            List<UserInfo> userList = GsonUtil.INSTANCE.toArrayList(usersOld, UserInfo.class);
+            if (!ToolUtil.isEmpty(userList)) {
+                for (UserInfo userInfo : userList) {
+                    usersMap.put(userInfo.accetKey, userInfo);
+                }
+            }
+            SharedPreferencesUtils.remove("users");
+        } else if (StringUtil.noEmpty(usersNew)) {
+            Map<String, UserInfo> userMap = GsonUtil.INSTANCE.toHashMap(usersNew, String.class, UserInfo.class);
+            if (userMap != null) {
+                usersMap.putAll(userMap);
+            }
         }
-        return userInfos;
+        return new ArrayList<>(usersMap.values());
     }
 
     public void addUser(UserInfo info) {
         if (info != null) {
-            if (userInfos.contains(info)) {
-                return;
-            }
-            userInfos.add(info);
+            usersMap.put(info.accetKey, info);
             saveAsync();
         }
     }
 
     public void save() {
-        SharedPreferencesUtils.saveString("users", GsonUtil.INSTANCE.toString(userInfos));
+        SharedPreferencesUtils.saveString("users_new", GsonUtil.INSTANCE.toString(usersMap));
     }
 
     public void saveAsync() {
@@ -67,7 +79,7 @@ public enum UserManager {
         if (userInfo == null) {
             return;
         }
-        userInfos.remove(userInfo);
+        usersMap.remove(userInfo.accetKey);
         saveAsync();
     }
 

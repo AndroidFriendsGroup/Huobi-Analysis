@@ -15,6 +15,7 @@ import com.razerdp.huobi.analysis.base.baseactivity.BaseActivity;
 import com.razerdp.huobi.analysis.base.baseadapter.BaseSimpleRecyclerViewHolder;
 import com.razerdp.huobi.analysis.base.baseadapter.SimpleRecyclerViewAdapter;
 import com.razerdp.huobi.analysis.base.interfaces.ExtSimpleCallback;
+import com.razerdp.huobi.analysis.base.manager.DataManager;
 import com.razerdp.huobi.analysis.base.manager.UserManager;
 import com.razerdp.huobi.analysis.entity.UserInfo;
 import com.razerdp.huobi.analysis.ui.ActivityLauncher;
@@ -59,6 +60,7 @@ public class MainActivity extends BaseActivity {
 
     @Override
     protected void onInitView(View decorView) {
+        requestData();
         disposableMap = new HashMap<>();
         mAdapter = new SimpleRecyclerViewAdapter<>(this, UserManager.INSTANCE.getUsers());
         mAdapter.setHolder(Holder.class);
@@ -75,6 +77,22 @@ public class MainActivity extends BaseActivity {
         rvContent.setAdapter(mAdapter);
         refreshAccountAssets();
         checkForUpdate();
+    }
+
+    private void requestData() {
+        showLoadingDialog(false);
+        setLoadingDialogText("正在更新数据，请稍候");
+        DataManager.INSTANCE.init(data -> {
+            if (data) {
+                dismissLoadingDialog();
+            } else {
+                setActionDialogText("更新失败，请重试", v -> {
+                    setLoadingDialogText("正在更新数据，请稍候");
+                    requestData();
+                });
+            }
+
+        });
     }
 
     @Override

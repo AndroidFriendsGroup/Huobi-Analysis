@@ -4,6 +4,7 @@ import android.app.Application;
 import android.content.Context;
 
 import com.pgyersdk.crash.PgyCrashManager;
+import com.razerdp.huobi.analysis.base.file.AppFileHelper;
 import com.razerdp.huobi.analysis.base.net.NetManager;
 
 /**
@@ -20,6 +21,7 @@ public class HuobiAnalysisApp extends Application {
     public void onCreate() {
         super.onCreate();
         PgyCrashManager.register();
+        AppFileHelper.init();
         NetManager.INSTANCE.init();
     }
 }

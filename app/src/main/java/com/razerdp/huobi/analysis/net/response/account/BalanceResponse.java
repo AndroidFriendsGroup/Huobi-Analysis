@@ -2,6 +2,7 @@ package com.razerdp.huobi.analysis.net.response.account;
 
 import android.text.TextUtils;
 
+import com.razerdp.huobi.analysis.base.manager.DataManager;
 import com.razerdp.huobi.analysis.entity.UserInfo;
 import com.razerdp.huobi.analysis.utils.log.HLog;
 
@@ -14,7 +15,7 @@ import java.util.Map;
  * <p>
  * Description：
  */
-public class BalanceResponse  {
+public class BalanceResponse {
 
     public long id;
     public String type;
@@ -34,6 +35,9 @@ public class BalanceResponse  {
         }
         Map<String, Double> map = new HashMap<>();
         for (BalanceInfo balanceInfo : list) {
+            if (!DataManager.INSTANCE.isTradePairExists(balanceInfo.currency + "usdt")) {
+                continue;
+            }
             if (TextUtils.equals(balanceInfo.type, "trade") || TextUtils
                     .equals(balanceInfo.type, "frozen")) {
                 if (balanceInfo.balance > 0.001) {

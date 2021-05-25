@@ -610,6 +610,10 @@ public class FileUtil {
         return file != null && (file.exists() ? file.isDirectory() : file.mkdirs());
     }
 
+    public static boolean exists(final File file) {
+        return file != null && file.exists();
+    }
+
     public static boolean createFile(final File file, boolean deleteOld) {
         if (file == null) return false;
         if (deleteOld && file.exists() && !file.delete()) return false;
