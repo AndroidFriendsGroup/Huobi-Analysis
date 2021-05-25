@@ -17,8 +17,8 @@ android {
         applicationId "com.razerdp.huobi_analysis"
         minSdkVersion 21
         targetSdkVersion 30
-        versionCode 7
-        versionName "1.6"
+        versionCode 8
+        versionName "1.8"
 
         renderscriptTargetApi 18
         renderscriptSupportModeEnabled true
