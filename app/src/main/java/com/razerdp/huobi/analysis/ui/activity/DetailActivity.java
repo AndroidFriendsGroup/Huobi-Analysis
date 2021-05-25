@@ -43,7 +43,6 @@ import java.util.Map;
 import butterknife.BindView;
 import io.reactivex.disposables.Disposable;
 import rxhttp.RxHttp;
-import rxhttp.wrapper.cahce.CacheMode;
 
 public class DetailActivity extends BaseActivity<DetailActivity.Data> {
 
@@ -166,16 +165,17 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
                 .subscribe(new OnResponseListener<List<HistoryOrderResponse>>() {
                     @Override
                     public void onSuccess(@NotNull List<HistoryOrderResponse> historyOrderResponses) {
-                        boolean continueRequest;
-                        if (ToolUtil.isEmpty(historyOrderResponses)) {
-                            continueRequest = true;
-                        } else {
+                        boolean continueRequest = true;
+                        if (!ToolUtil.isEmpty(historyOrderResponses)) {
                             for (HistoryOrderResponse data : historyOrderResponses) {
                                 if (data.type.contains("buy")) {
                                     detailInfo.recordTrades(data.amount, data.price);
+                                    continueRequest = detailInfo.amount < detailInfo.myAmount;
+                                    if (!continueRequest) {
+                                        break;
+                                    }
                                 }
                             }
-                            continueRequest = detailInfo.amount < detailInfo.myAmount;
                         }
                         if (continueRequest) {
                             detailInfo.endTime -= TimeUtil.DAY * 2 * 1000;
@@ -387,7 +387,7 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
 
         double getAveragePrice() {
             if (isChange || cacheAveragePrice == 0) {
-                HLog.i("getAveragePrice", tradingPair, prices, amounts);
+                HLog.i("getAveragePrice", tradingPair, prices, amounts, myAmount);
                 double all = 0;
                 for (int i = 0; i < prices.size(); i++) {
                     all += prices.get(i) * amounts.get(i);

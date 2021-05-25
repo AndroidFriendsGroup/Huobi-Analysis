@@ -5,6 +5,7 @@ import android.view.MotionEvent;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.io.Writer;
+import java.text.NumberFormat;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -59,6 +60,11 @@ class LogPrinterParser {
             result = fromMap((Map) obj);
         } else if (obj instanceof MotionEvent) {
             result = fromMotionEvent((MotionEvent) obj);
+        } else if (obj instanceof Number) {
+            NumberFormat nf = NumberFormat.getInstance();
+            nf.setMaximumFractionDigits(20);
+            nf.setGroupingUsed(false);
+            result = nf.format(((Number) obj).doubleValue());
         } else {
             result = String.valueOf(obj);
         }
@@ -134,7 +140,8 @@ class LogPrinterParser {
         Iterator iterator = map.entrySet().iterator();
         while (iterator.hasNext()) {
             Map.Entry entry = (Map.Entry) iterator.next();
-            builder.append(String.format("\t%1$s : %2$s", String.valueOf(entry.getKey()), String.valueOf(entry.getValue())));
+            builder.append(String.format("\t%1$s : %2$s", String.valueOf(entry.getKey()), String.valueOf(entry
+                    .getValue())));
             builder.append("\n");
         }
         builder.append("}");
