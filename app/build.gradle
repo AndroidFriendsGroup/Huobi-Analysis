@@ -35,11 +35,14 @@ android {
 
     buildTypes {
         debug {
-            manifestPlaceholders = [APPID: getAppid()]
+            applicationIdSuffix ".debug"
+            manifestPlaceholders = [APPID: getAppid(),
+                                    name : "Huobi-Analysis-Debug"]
         }
         release {
             minifyEnabled false
-            manifestPlaceholders = [APPID: getAppid()]
+            manifestPlaceholders = [APPID: getAppid(),
+                                    name : "Huobi-Analysis"]
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }

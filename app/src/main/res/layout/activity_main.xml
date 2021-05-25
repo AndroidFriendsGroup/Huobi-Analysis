@@ -11,8 +11,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         app:mode="mode_right"
-        app:right_text="检查更新"
-        app:title_text="火币成本追踪" />
+        app:right_text="检查更新" />
 
     <com.razerdp.huobi.analysis.ui.widget.DPRecyclerView
         android:id="@+id/rv_content"

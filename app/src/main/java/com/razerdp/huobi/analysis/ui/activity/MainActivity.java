@@ -30,6 +30,7 @@ import com.razerdp.huobi.analysis.utils.StringUtil;
 import com.razerdp.huobi.analysis.utils.UIHelper;
 import com.razerdp.huobi.analysis.utils.ViewUtil;
 import com.razerdp.huobi.analysis.utils.rx.RxHelper;
+import com.razerdp.huobi_analysis.BuildConfig;
 import com.razerdp.huobi_analysis.R;
 
 import org.jetbrains.annotations.NotNull;
@@ -60,6 +61,7 @@ public class MainActivity extends BaseActivity {
 
     @Override
     protected void onInitView(View decorView) {
+        setTitle(BuildConfig.DEBUG ? "火币成本追踪-DEBUG" : "火币成本追踪");
         requestData();
         disposableMap = new HashMap<>();
         mAdapter = new SimpleRecyclerViewAdapter<>(this, UserManager.INSTANCE.getUsers());
@@ -76,7 +78,9 @@ public class MainActivity extends BaseActivity {
         });
         rvContent.setAdapter(mAdapter);
         refreshAccountAssets();
-        checkForUpdate();
+        if (!BuildConfig.DEBUG) {
+            checkForUpdate();
+        }
     }
 
     private void requestData() {
