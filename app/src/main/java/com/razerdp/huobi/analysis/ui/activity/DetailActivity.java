@@ -43,6 +43,7 @@ import java.util.Map;
 import butterknife.BindView;
 import io.reactivex.disposables.Disposable;
 import rxhttp.RxHttp;
+import rxhttp.wrapper.cahce.CacheMode;
 
 public class DetailActivity extends BaseActivity<DetailActivity.Data> {
 

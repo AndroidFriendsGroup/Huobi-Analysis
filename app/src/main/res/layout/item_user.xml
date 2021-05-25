@@ -36,9 +36,9 @@
 
             <ImageView
                 android:id="@+id/iv_refresh"
-                android:layout_width="20dp"
-                android:layout_height="20dp"
-                android:layout_marginLeft="12dp"
+                android:layout_width="12dp"
+                android:layout_height="12dp"
+                android:layout_marginLeft="8dp"
                 android:src="@drawable/ic_refresh" />
         </LinearLayout>
 

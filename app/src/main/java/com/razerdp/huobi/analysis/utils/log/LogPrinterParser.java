@@ -31,9 +31,6 @@ class LogPrinterParser {
     static String parseContent(Object... obj) {
         StringBuilder buffer = new StringBuilder();
         if (obj != null) {
-            if (obj.length > 1) {
-                buffer.append(" {  ");
-            }
             int i = 0;
             for (Object o : obj) {
                 buffer.append("params【")
@@ -42,12 +39,9 @@ class LogPrinterParser {
                         .append(" = ")
                         .append(parseContentInternal(o));
                 if (i < obj.length - 1) {
-                    buffer.append(" , ");
+                    buffer.append("\n");
                 }
                 i++;
-            }
-            if (obj.length > 1) {
-                buffer.append("  }");
             }
         }
         return buffer.toString();

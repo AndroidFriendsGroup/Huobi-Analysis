@@ -1,7 +1,9 @@
 package com.razerdp.huobi.analysis.base.net.retry;
 
 
-import com.razerdp.huobi.analysis.utils.log.HLog;
+import android.text.TextUtils;
+
+import com.razerdp.huobi.analysis.base.net.exception.NetException;
 
 import org.jetbrains.annotations.NotNull;
 
@@ -15,13 +17,14 @@ public class RetryHandler implements Function<Observable<? extends Throwable>, O
     private static final String TAG = "RetryHandler";
     private int maxRetryCount;
     private int retryInterval;
+    private boolean hasAddSignRetryCount = false;
 
     public RetryHandler() {
-        this(5, 500);
+        this(5, 1000);
     }
 
     public RetryHandler(int maxRetryCount) {
-        this(maxRetryCount, 500);
+        this(maxRetryCount, 1000);
     }
 
     public RetryHandler(int maxRetryCount, int retryInterval) {
@@ -34,6 +37,15 @@ public class RetryHandler implements Function<Observable<? extends Throwable>, O
         return observable.flatMap((Function<Throwable, ObservableSource<?>>) throwable -> {
             if (maxRetryCount > 0) {
                 maxRetryCount--;
+                if (throwable instanceof NetException) {
+                    if (!hasAddSignRetryCount &&
+                            (TextUtils.equals(((NetException) throwable).getErrorCode(), "api-signature-not-valid")
+                                    || TextUtils.equals(((NetException) throwable).getErrorCode(), "1003"))) {
+                        // 验签失败不算重试次数
+                        maxRetryCount += 5;
+                        hasAddSignRetryCount = true;
+                    }
+                }
                 return Observable.timer(retryInterval, TimeUnit.MILLISECONDS);
             }
             return Observable.error(throwable);

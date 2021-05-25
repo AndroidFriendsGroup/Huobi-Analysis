@@ -2,13 +2,13 @@ package com.razerdp.huobi.analysis.base.net;
 
 import android.annotation.SuppressLint;
 import android.text.TextUtils;
-import android.util.Base64;
 
 import com.razerdp.huobi.analysis.base.net.exception.NetException;
 import com.razerdp.huobi.analysis.base.net.interceptor.HttpLoggingInterceptor;
 import com.razerdp.huobi.analysis.base.net.interceptor.SignInterceptor;
 import com.razerdp.huobi.analysis.entity.UserInfo;
 import com.razerdp.huobi.analysis.net.response.base.BaseResponse;
+import com.razerdp.huobi.analysis.utils.Base64Util;
 import com.razerdp.huobi.analysis.utils.StringUtil;
 import com.razerdp.huobi.analysis.utils.log.HLog;
 import com.razerdp.huobi.analysis.utils.rx.RxHelper;
@@ -272,18 +272,20 @@ public enum NetManager {
                 .ofPattern("uuuu-MM-dd'T'HH:mm:ss");
         private static final ZoneId ZONE_GMT = ZoneId.of("Z");
 
+        // https://github.com/HuobiRDCenter/huobi_Java/blob/master/src/main/java/com/huobi/service/huobi/signature/ApiSignature.java
         public static Request sign(Request request) {
             HttpUrl url = request.url();
             HttpUrl.Builder urlBuilder = url.newBuilder();
             StringBuilder builder = new StringBuilder();
             builder.append(request.method().toUpperCase()).append('\n')
-                    .append(url.host()).append('\n')
+                    .append(url.host().toLowerCase()).append('\n')
                     .append(url.encodedPath()).append('\n');
             List<KeyValuePair> params = new ArrayList<>();
             String secretKey = url.queryParameter(V1.INTERNAL_SECRET_KEY);
             if (TextUtils.isEmpty(secretKey)) {
                 return request;
             }
+
             params.add(new KeyValuePair(V1.TIME, timeStamp()));
             for (String key : url.queryParameterNames()) {
                 if (!TextUtils.equals(key, V1.INTERNAL_SECRET_KEY)) {
@@ -291,14 +293,12 @@ public enum NetManager {
                 }
             }
             Collections.sort(params, COMPARATOR);
+            builder.append(getSignString(params));
+            urlBuilder.removeAllEncodedQueryParameters(V1.INTERNAL_SECRET_KEY);
             for (KeyValuePair param : params) {
                 urlBuilder.setEncodedQueryParameter(param.getKey(), encode(param.getValue()));
             }
-            urlBuilder.removeAllEncodedQueryParameters(V1.INTERNAL_SECRET_KEY);
-            builder.append(getSignString(params));
-            HLog.i("sign", builder);
             urlBuilder.setEncodedQueryParameter(V1.SIGN, signInternal(builder.toString(),
-                    V1.SIGN_METHOD_VALUE,
                     secretKey));
             return request.newBuilder().url(urlBuilder.build()).build();
         }
@@ -334,15 +334,16 @@ public enum NetManager {
             }
         }
 
-        static String signInternal(String from, String signType, String secretKey) {
-            Mac hmacSha256;
+        static String signInternal(String from, String secretKey) {
             try {
-                hmacSha256 = Mac.getInstance(signType);
+                Mac hmacSha256 = Mac.getInstance(V1.SIGN_METHOD_VALUE);
                 SecretKeySpec secKey = new SecretKeySpec(secretKey.getBytes(StandardCharsets.UTF_8),
-                        signType);
+                        V1.SIGN_METHOD_VALUE);
                 hmacSha256.init(secKey);
                 byte[] hash = hmacSha256.doFinal(from.getBytes(StandardCharsets.UTF_8));
-                return Base64.encodeToString(hash, Base64.DEFAULT);
+                String result = Base64Util.encode(hash);
+                HLog.i("signInternal", from, result);
+                return result;
             } catch (NoSuchAlgorithmException | InvalidKeyException e) {
                 HLog.e("signInternal", e);
             }
