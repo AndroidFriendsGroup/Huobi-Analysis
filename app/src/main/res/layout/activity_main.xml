@@ -16,6 +16,15 @@
     <com.razerdp.huobi.analysis.ui.widget.DPRecyclerView
         android:id="@+id/rv_content"
         android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+        android:layout_height="0dp"
+        android:layout_weight="1"/>
+    <TextView
+        android:id="@+id/tv_notice"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="12dp"
+        android:textColor="@color/common_blue"
+        android:text="火币公告"
+        android:gravity="center"/>
 
 </LinearLayout>

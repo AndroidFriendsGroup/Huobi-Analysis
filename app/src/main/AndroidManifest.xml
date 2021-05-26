@@ -25,8 +25,8 @@
         android:theme="@style/AppTheme"
         android:usesCleartextTraffic="true"
         tools:ignore="GoogleAppIndexingWarning"
-        tools:replace="android:label"
-        tools:overrideLibrary="com.pgyersdk">
+        tools:overrideLibrary="com.pgyersdk"
+        tools:replace="android:label">
         <!-- 全面屏 -->
         <meta-data
             android:name="android.max_aspect"
@@ -71,6 +71,11 @@
             android:name="com.razerdp.huobi.analysis.ui.activity.GuideActivity"
             android:configChanges="orientation|keyboardHidden|screenSize"
             android:screenOrientation="portrait"
+            android:windowSoftInputMode="adjustPan|stateHidden" />
+        <activity
+            android:name="com.razerdp.huobi.analysis.ui.activity.WebActivity"
+            android:configChanges="orientation|keyboardHidden|screenSize"
+            android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustPan|stateHidden" />
 
     </application>

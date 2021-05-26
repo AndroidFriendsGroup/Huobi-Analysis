@@ -9,9 +9,9 @@ import androidx.lifecycle.Observer;
 class LiveDataObserverWrapper<T> implements Observer<T> {
     private int lastVersion;
     private Observer<T> mTarget;
-    private DPLiveData<T> mLiveData;
+    private HLiveData<T> mLiveData;
 
-    LiveDataObserverWrapper(Observer<T> target, DPLiveData<T> liveData) {
+    LiveDataObserverWrapper(Observer<T> target, HLiveData<T> liveData) {
         mTarget = target;
         mLiveData = liveData;
         lastVersion = mLiveData.getVersion();
@@ -23,6 +23,12 @@ class LiveDataObserverWrapper<T> implements Observer<T> {
             return;
         }
         lastVersion = mLiveData.getVersion();
-        mTarget.onChanged(t);
+        if (mTarget != null) {
+            try {
+                mTarget.onChanged(t);
+            } catch (Exception e) {
+
+            }
+        }
     }
 }

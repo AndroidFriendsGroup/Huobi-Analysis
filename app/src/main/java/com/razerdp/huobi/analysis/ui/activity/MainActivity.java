@@ -16,6 +16,7 @@ import com.razerdp.huobi.analysis.base.baseadapter.BaseSimpleRecyclerViewHolder;
 import com.razerdp.huobi.analysis.base.baseadapter.SimpleRecyclerViewAdapter;
 import com.razerdp.huobi.analysis.base.interfaces.ExtSimpleCallback;
 import com.razerdp.huobi.analysis.base.manager.DataManager;
+import com.razerdp.huobi.analysis.base.manager.LiveDataBus;
 import com.razerdp.huobi.analysis.base.manager.UserManager;
 import com.razerdp.huobi.analysis.entity.UserInfo;
 import com.razerdp.huobi.analysis.ui.ActivityLauncher;
@@ -46,6 +47,8 @@ public class MainActivity extends BaseActivity {
 
     @BindView(R.id.rv_content)
     DPRecyclerView rvContent;
+    @BindView(R.id.tv_notice)
+    TextView tvNotice;
     SimpleRecyclerViewAdapter<UserInfo> mAdapter;
 
     PopupAddUser popupAddUser;
@@ -81,6 +84,7 @@ public class MainActivity extends BaseActivity {
         if (!BuildConfig.DEBUG) {
             checkForUpdate();
         }
+        tvNotice.setOnClickListener(v -> ActivityLauncher.toWeb(self(), "https://www.huobi.pe/support/zh-cn/list/360000031902"));
     }
 
     private void requestData() {
@@ -183,6 +187,7 @@ public class MainActivity extends BaseActivity {
             @Override
             public void onCall(UserInfo data) {
                 mAdapter.notifyItemChanged(data);
+                LiveDataBus.INSTANCE.getMyAssetsLiveData().send(data);
                 if (disposableMap.get(userInfo.accetKey) == null) {
                     disposableMap.put(userInfo.accetKey, RxHelper.loop(5000, 5000, data1 -> requestAccountAssets(userInfo)));
                 }

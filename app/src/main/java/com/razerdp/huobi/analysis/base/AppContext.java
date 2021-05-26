@@ -10,7 +10,7 @@ import android.util.Log;
 import androidx.lifecycle.LifecycleOwner;
 import androidx.lifecycle.Observer;
 
-import com.razerdp.huobi.analysis.base.livedata.DPLiveData;
+import com.razerdp.huobi.analysis.base.livedata.HLiveData;
 
 import java.lang.ref.WeakReference;
 
@@ -25,7 +25,7 @@ public class AppContext {
     private static final String TAG = "AppContext";
     public static Application sApplication;
     private static InnerLifecycleHandler INNER_LIFECYCLE_HANDLER;
-    private static DPLiveData<Boolean> foreGroundAndBackgroundChangeLiveData;
+    private static HLiveData<Boolean> foreGroundAndBackgroundChangeLiveData;
 
     public static void init(Application app) {
         if (sApplication != null) return;
@@ -65,9 +65,9 @@ public class AppContext {
         getForeGroundAndBackgroundChangeLiveData().removeObservers(owner);
     }
 
-    private static DPLiveData<Boolean> getForeGroundAndBackgroundChangeLiveData() {
+    private static HLiveData<Boolean> getForeGroundAndBackgroundChangeLiveData() {
         if (foreGroundAndBackgroundChangeLiveData == null) {
-            foreGroundAndBackgroundChangeLiveData = new DPLiveData<>();
+            foreGroundAndBackgroundChangeLiveData = new HLiveData<>();
         }
         return foreGroundAndBackgroundChangeLiveData;
     }

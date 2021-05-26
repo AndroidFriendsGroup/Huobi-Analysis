@@ -1,5 +1,6 @@
 package com.razerdp.huobi.analysis.ui.activity;
 
+import android.graphics.Color;
 import android.view.View;
 import android.widget.TextView;
 
@@ -10,6 +11,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import com.razerdp.huobi.analysis.base.baseactivity.BaseActivity;
 import com.razerdp.huobi.analysis.base.baseadapter.BaseSimpleRecyclerViewHolder;
 import com.razerdp.huobi.analysis.base.baseadapter.SimpleRecyclerViewAdapter;
+import com.razerdp.huobi.analysis.base.manager.LiveDataBus;
 import com.razerdp.huobi.analysis.base.net.listener.OnResponseListener;
 import com.razerdp.huobi.analysis.base.net.retry.RetryHandler;
 import com.razerdp.huobi.analysis.entity.UserInfo;
@@ -58,8 +60,7 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
     Map<String, Disposable> disposableMap;
 
     @Override
-    protected boolean onCheckIntentDataValidate(
-            @Nullable @org.jetbrains.annotations.Nullable Data activityData) {
+    protected boolean onCheckIntentDataValidate(@Nullable Data activityData) {
         if (activityData == null || activityData.userInfo == null) {
             return false;
         }
@@ -75,9 +76,17 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
     @Override
     protected void onInitView(View decorView) {
         disposableMap = new HashMap<>();
-        setTitle("用户：" + userInfo.name);
+        updateTitle(userInfo);
         mTvState.setOnClickListener(v -> requestBalance());
         requestBalance();
+        LiveDataBus.INSTANCE.getMyAssetsLiveData().observe(this, userInfo -> updateTitle(userInfo));
+    }
+
+    void updateTitle(UserInfo userInfo) {
+        String money = String.format("CNY:%s", userInfo.assets);
+        setTitle(SpanUtil.create(String.format("%s\n%s", userInfo.name, money))
+                .append(money).setTextSize(12)
+                .getSpannableStringBuilder(Color.WHITE));
     }
 
     void initRvContent() {
