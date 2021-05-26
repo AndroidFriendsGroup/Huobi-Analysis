@@ -37,7 +37,7 @@ android {
         debug {
             applicationIdSuffix ".debug"
             manifestPlaceholders = [APPID: getAppid(),
-                                    name : "Huobi-Analysis-Debug"]
+                                    name : "(Debug)Huobi-Analysis"]
         }
         release {
             minifyEnabled false
