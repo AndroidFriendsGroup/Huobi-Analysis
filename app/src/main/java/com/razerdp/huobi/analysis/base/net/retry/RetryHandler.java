@@ -15,7 +15,7 @@ import io.reactivex.functions.Function;
 
 public class RetryHandler implements Function<Observable<? extends Throwable>, Observable<?>> {
     private static final String TAG = "RetryHandler";
-    private int maxRetryCount;
+    private volatile int maxRetryCount;
     private int retryInterval;
     private boolean hasAddSignRetryCount = false;
 

@@ -64,7 +64,7 @@ import rxhttp.wrapper.utils.Converter;
  */
 public enum NetManager {
     INSTANCE;
-    String[] apis = {"api.huobi.pro", "api-aws.huobi.pro", "api.huobi.de.com"};
+    String[] apis = {"api.huobi.pro"/*, "api-aws.huobi.pro"*/, "api.huobi.de.com"};
 
     public static class Url {
 
@@ -72,7 +72,7 @@ public enum NetManager {
         public static String baseUrl = INSTANCE.api();
     }
 
-    String curApi = apis[2];
+    String curApi = apis[apis.length-1];
 
     @SuppressLint("CheckResult")
     public void init() {
@@ -175,6 +175,10 @@ public enum NetManager {
 
         @Override
         public T onParse(@NotNull Response response) throws IOException {
+            if (response.code() == 400) {
+                INSTANCE.ping();
+                throw new NetException("400", "no data");
+            }
             BaseResponse<T> data = Converter.convertTo(response, BaseResponse.class, mType);
             if (data == null) {
                 throw new NetException("0", "no data");

@@ -158,6 +158,7 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
         }
         RxHttp.get(History.historyOrders(), userInfo)
                 .addQuery("symbol", detailInfo.getRequestTradePairs())
+                .addQuery("types", "buy-limit,buy-market,buy-limit-maker")
                 .addQuery("end-time", detailInfo.endTime)
                 .asResponseList(HistoryOrderResponse.class)
                 .retryWhen(new RetryHandler(5, 500))
@@ -168,12 +169,10 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
                         boolean continueRequest = true;
                         if (!ToolUtil.isEmpty(historyOrderResponses)) {
                             for (HistoryOrderResponse data : historyOrderResponses) {
-                                if (data.type.contains("buy")) {
-                                    detailInfo.recordTrades(data.amount, data.price);
-                                    continueRequest = detailInfo.amount < detailInfo.myAmount;
-                                    if (!continueRequest) {
-                                        break;
-                                    }
+                                detailInfo.recordTrades(data.amount, data.price);
+                                continueRequest = detailInfo.amount < detailInfo.myAmount;
+                                if (!continueRequest) {
+                                    break;
                                 }
                             }
                         }
@@ -287,6 +286,7 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
                 if (getData().incomeMode == DetailInfo.MODE_REFRESHING) {
                     return;
                 }
+                getData().incomeMode = DetailInfo.MODE_REFRESHING;
                 requestNewestPrice(getData());
             });
         }
@@ -300,13 +300,13 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
         public void onBindData(DetailInfo data, int position) {
             if (data.newestPrice != 0) {
                 String formatted = String.format("%s USDT", NumberUtils.formatDecimal(data.newestPrice, 8));
-                SpanUtil.create(String.format("%s  %s", data.tradingPair, formatted))
+                SpanUtil.create(String.format("%s  %s", data.getCurrencyName(), formatted))
                         .append(formatted)
                         .setTextColor(UIHelper.getColor(R.color.text_black3))
                         .setTextSize(12)
                         .into(mTvCurrency);
             } else {
-                mTvCurrency.setText(data.tradingPair);
+                mTvCurrency.setText(data.getCurrencyName());
             }
             mTvAmount.setText(NumberUtils.formatDecimal(data.myAmount, 4));
             switch (data.costMode) {
@@ -345,6 +345,7 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
         public static final int MODE_REFRESHING = 1;
         public static final int MODE_ERROR = 2;
         String tradingPair;
+        String currencyName;
         double myAmount;
 
         int costMode;
@@ -358,6 +359,7 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
         boolean isChange;
         double cacheAveragePrice;
         double newestPrice;
+        long queryID;
 
         public DetailInfo() {
             amounts = new ArrayList<>();
@@ -366,6 +368,18 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
 
         String getRequestTradePairs() {
             return tradingPair + "usdt";
+        }
+
+        String getCurrencyName() {
+            if (currencyName != null) return currencyName;
+            if (tradingPair.toLowerCase().endsWith("3l")) {
+                currencyName = String.format("%s(*3)", tradingPair.substring(0, tradingPair.length() - 2));
+            } else if (tradingPair.toLowerCase().endsWith("3s")) {
+                currencyName = String.format("%s(*-3)", tradingPair.substring(0, tradingPair.length() - 2));
+            } else {
+                currencyName = tradingPair;
+            }
+            return currencyName;
         }
 
         public void recordTrades(double amount, double price) {
@@ -383,6 +397,7 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
             isChange = true;
             cacheAveragePrice = 0;
             newestPrice = 0;
+            queryID = 0;
         }
 
         double getAveragePrice() {
