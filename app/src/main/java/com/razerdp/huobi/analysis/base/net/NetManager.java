@@ -346,7 +346,7 @@ public enum NetManager {
                 hmacSha256.init(secKey);
                 byte[] hash = hmacSha256.doFinal(from.getBytes(StandardCharsets.UTF_8));
                 String result = Base64Util.encode(hash);
-                HLog.i("signInternal", from, result);
+//                HLog.i("signInternal", from, result);
                 return result;
             } catch (NoSuchAlgorithmException | InvalidKeyException e) {
                 HLog.e("signInternal", e);

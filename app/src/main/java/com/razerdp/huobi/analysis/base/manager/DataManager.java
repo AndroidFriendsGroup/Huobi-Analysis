@@ -1,8 +1,8 @@
 package com.razerdp.huobi.analysis.base.manager;
 
+import android.os.Handler;
+import android.os.Looper;
 import android.text.TextUtils;
-
-import androidx.annotation.Nullable;
 
 import com.razerdp.huobi.analysis.base.file.AppFileHelper;
 import com.razerdp.huobi.analysis.base.interfaces.SimpleCallback;
@@ -25,6 +25,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import androidx.annotation.Nullable;
 import io.reactivex.schedulers.Schedulers;
 import rxhttp.RxHttp;
 
@@ -40,6 +41,21 @@ public enum DataManager {
     Map<String, SupportedTradeInfo> supportedTradeInfoMap = new HashMap<>();
     String supportedTradeFileName = "supportedTrade";
 
+    Map<String, NewestQueryInfo> newestQueryIdData = new HashMap<>();
+    final String filePath = AppFileHelper.getFilePath() + "cache";
+    Handler mHandler = new android.os.Handler(Looper.getMainLooper());
+    Runnable mRunnable = this::save;
+
+    public static class NewestQueryInfo {
+        public long id;
+        public long createTime;
+
+        public NewestQueryInfo(long id, long createTime) {
+            this.id = id;
+            this.createTime = createTime;
+        }
+    }
+
     public void init(SimpleCallback<Boolean> cb) {
         if (hasInit()) {
             if (cb != null) {
@@ -48,6 +64,7 @@ public enum DataManager {
             updateDataInternal(null);
             return;
         }
+        RxHelper.runOnBackground(data -> initData());
         if (FileUtil.exists(new File(AppFileHelper.getFilePath() + supportedTradeFileName))) {
             RxHelper.runOnBackground(new RxTaskCall<Map<String, SupportedTradeInfo>>() {
                 @Override
@@ -93,11 +110,12 @@ public enum DataManager {
                     public void onSuccess(@NotNull List<SupportedTradeInfo> supportedTradeInfos) {
                         Map<String, SupportedTradeInfo> map = new HashMap<>();
                         for (SupportedTradeInfo supportedTradeInfo : supportedTradeInfos) {
-                            map.put(supportedTradeInfo.basecurrency + supportedTradeInfo.quotecurrency, supportedTradeInfo);
+                            map.put(supportedTradeInfo.basecurrency + supportedTradeInfo.quotecurrency,
+                                    supportedTradeInfo);
                         }
                         if (!ToolUtil.isEmpty(map)) {
                             FileUtil.writeToFile(AppFileHelper.getFilePath() + supportedTradeFileName,
-                                    GsonUtil.INSTANCE.toString(map));
+                                                 GsonUtil.INSTANCE.toString(map));
                             supportedTradeInfoMap.putAll(map);
                             if (cb != null) {
                                 RxHelper.runOnUiThread((RxCall<Void>) data -> cb.onCall(true));
@@ -129,5 +147,44 @@ public enum DataManager {
         }
         SupportedTradeInfo info = supportedTradeInfoMap.get(tradePairs);
         return TextUtils.equals(info.apitrading, "enabled");
+    }
+
+    private void initData() {
+        Map<String, NewestQueryInfo> result =
+                GsonUtil.INSTANCE.toHashMap(FileUtil.readFile(filePath),
+                                            String.class,
+                                            NewestQueryInfo.class);
+        if (result != null && !result.isEmpty()) {
+            newestQueryIdData.putAll(result);
+        }
+    }
+
+    @Nullable
+    public NewestQueryInfo getNewestQueryInfo(String tradePairs) {
+        if (TextUtils.isEmpty(tradePairs)) {
+            return null;
+        }
+        return newestQueryIdData.get(tradePairs);
+    }
+
+    public void saveLastQueryId(String tradePairs, long createTime, long lastQueryId) {
+        if (TextUtils.isEmpty(tradePairs)) {
+            return;
+        }
+        if (newestQueryIdData.containsKey(tradePairs)) {
+            NewestQueryInfo result = newestQueryIdData.get(tradePairs);
+            if (createTime <= result.createTime) {
+                return;
+            }
+        }
+        newestQueryIdData.put(tradePairs, new NewestQueryInfo(lastQueryId, createTime));
+        mHandler.removeCallbacks(mRunnable);
+        mHandler.postDelayed(mRunnable, 3000);
+    }
+
+    public void save() {
+        RxHelper.runOnBackground(data -> FileUtil.writeToFile(filePath,
+                                                              GsonUtil.INSTANCE.toString(
+                                                                      newestQueryIdData)));
     }
 }

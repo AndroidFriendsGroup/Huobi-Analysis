@@ -92,6 +92,10 @@ public enum GsonUtil {
         return $Gson$Types.newParameterizedTypeWithOwner(null, HashMap.class, type, type2);
     }
 
+    public static Type TypeMap(Class<? extends Map> cls, Type type, Type type2) {
+        return $Gson$Types.newParameterizedTypeWithOwner(null, cls, type, type2);
+    }
+
     public static Type TypeMap(Type type, Type type2) {
         return $Gson$Types.newParameterizedTypeWithOwner(null, Map.class, type, type2);
     }

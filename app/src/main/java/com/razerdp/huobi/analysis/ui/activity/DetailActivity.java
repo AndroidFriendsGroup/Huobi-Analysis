@@ -4,13 +4,11 @@ import android.graphics.Color;
 import android.view.View;
 import android.widget.TextView;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-import androidx.recyclerview.widget.LinearLayoutManager;
-
 import com.razerdp.huobi.analysis.base.baseactivity.BaseActivity;
 import com.razerdp.huobi.analysis.base.baseadapter.BaseSimpleRecyclerViewHolder;
 import com.razerdp.huobi.analysis.base.baseadapter.SimpleRecyclerViewAdapter;
+import com.razerdp.huobi.analysis.base.interfaces.SimpleCallback;
+import com.razerdp.huobi.analysis.base.manager.DataManager;
 import com.razerdp.huobi.analysis.base.manager.LiveDataBus;
 import com.razerdp.huobi.analysis.base.net.listener.OnResponseListener;
 import com.razerdp.huobi.analysis.base.net.retry.RetryHandler;
@@ -42,9 +40,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.recyclerview.widget.LinearLayoutManager;
 import butterknife.BindView;
 import io.reactivex.disposables.Disposable;
 import rxhttp.RxHttp;
+import rxhttp.RxHttpGetSignParam;
 
 public class DetailActivity extends BaseActivity<DetailActivity.Data> {
 
@@ -53,6 +55,11 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
     TextView mTvState;
     @BindView(R.id.rv_content)
     DPRecyclerView rvContent;
+    @BindView(R.id.tv_all_cost)
+    TextView mTvAllCost;
+    @BindView(R.id.tv_all_profit)
+    TextView mTvAllProfit;
+
 
     UserInfo userInfo;
 
@@ -79,14 +86,42 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
         updateTitle(userInfo);
         mTvState.setOnClickListener(v -> requestBalance());
         requestBalance();
-        LiveDataBus.INSTANCE.getMyAssetsLiveData().observe(this, userInfo -> updateTitle(userInfo));
+        LiveDataBus.INSTANCE.getMyAssetsLiveData().observe(this, this::updateTitle);
+    }
+
+    void refreshAllCostAndProfit() {
+        double cost = 0;
+        double profit = 0;
+        for (DetailInfo data : mAdapter.getDatas()) {
+            cost += data.getAveragePrice() * data.myAmount;
+            profit += data.getIncome();
+        }
+        String formattedCost = NumberUtils.getPrice(cost);
+        String formattedProfit = NumberUtils.getPrice(profit);
+        SpanUtil.create(String.format("预估总成本（USDT）：\n%s", formattedCost))
+                .append(formattedCost)
+                .setTextColor(UIHelper.getColor(R.color.text_black2))
+                .setTextSize(12)
+                .into(mTvAllCost);
+        SpanUtil.create(String.format("预估总收益（USDT）：\n%s", formattedProfit))
+                .append(formattedProfit)
+                .setTextColor(profit > 0 ? UIHelper.getColor(R.color.common_red) : UIHelper
+                        .getColor(R.color.common_green))
+                .setTextSize(12)
+                .into(mTvAllProfit);
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        DataManager.INSTANCE.save();
     }
 
     void updateTitle(UserInfo userInfo) {
         String money = String.format("CNY:%s", userInfo.assets);
         setTitle(SpanUtil.create(String.format("%s\n%s", userInfo.name, money))
-                .append(money).setTextSize(12)
-                .getSpannableStringBuilder(Color.WHITE));
+                         .append(money).setTextSize(12)
+                         .getSpannableStringBuilder(Color.WHITE));
     }
 
     void initRvContent() {
@@ -106,8 +141,14 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
             rvContent.setAdapter(mAdapter);
         }
         for (DetailInfo data : mAdapter.getDatas()) {
-            requestCost(data);
+            refreshQueryId(data, new SimpleCallback<Void>() {
+                @Override
+                public void onCall(Void v) {
+                    requestCost(data);
+                }
+            });
         }
+
     }
 
     List<DetailInfo> processData() {
@@ -116,6 +157,12 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
             DetailInfo detailInfo = new DetailInfo();
             detailInfo.tradingPair = entry.getKey();
             detailInfo.myAmount = entry.getValue();
+            DataManager.NewestQueryInfo newestQueryInfo = DataManager.INSTANCE.getNewestQueryInfo(
+                    detailInfo.tradingPair);
+            if (newestQueryInfo != null) {
+                detailInfo.queryID = newestQueryInfo.id;
+                detailInfo.endTime = newestQueryInfo.createTime;
+            }
             result.add(detailInfo);
         }
         Collections.sort(result, mComparator);
@@ -145,31 +192,66 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
                 });
     }
 
+    void refreshQueryId(DetailInfo detailInfo, SimpleCallback<Void> cb) {
+        if (detailInfo.queryID == 0) {
+            cb.onCall(null);
+        } else {
+            onRequest(detailInfo);
+            RxHttp.get(History.historyOrders(), userInfo)
+                    .addQuery("symbol", detailInfo.getRequestTradePairs())
+                    .addQuery("types", "buy-limit,buy-market,buy-limit-maker")
+                    .addQuery("from", detailInfo.queryID)
+                    .addQuery("end-time", detailInfo.endTime)
+                    .addQuery("direct", "prev")
+                    .asResponseList(HistoryOrderResponse.class)
+                    .retryWhen(new RetryHandler(5, 500))
+                    .as(RxLife.asOnMain(self()))
+                    .subscribe(new OnResponseListener<List<HistoryOrderResponse>>() {
+                        @Override
+                        public void onSuccess(@NonNull List<HistoryOrderResponse> historyOrderResponses) {
+                            if (!ToolUtil.isEmpty(historyOrderResponses)) {
+                                HistoryOrderResponse first = historyOrderResponses.get(0);
+                                detailInfo.queryID = first.requestID;
+                                long nextEndTime = detailInfo.endTime + TimeUtil.DAY * 2 * 1000;
+                                detailInfo.endTime = Math.min(System.currentTimeMillis(),
+                                                              nextEndTime);
+                                DataManager.INSTANCE.saveLastQueryId(detailInfo.tradingPair,
+                                                                     first.createTime,
+                                                                     first.requestID);
+                                if (nextEndTime < System.currentTimeMillis()) {
+                                    refreshQueryId(detailInfo, cb);
+                                } else {
+                                    cb.onCall(null);
+                                }
+                            } else {
+                                cb.onCall(null);
+                            }
+                        }
+
+                        @Override
+                        public void onError(String errorCode, @NotNull Throwable e) {
+                            cb.onCall(null);
+                        }
+                    });
+
+
+        }
+    }
+
     // 窗口只有48h。。。所以需要一直往前推
     void requestCost(DetailInfo detailInfo) {
         if (detailInfo == null) {
             return;
         }
-        if (detailInfo.costMode != DetailInfo.MODE_REFRESHING) {
-            detailInfo.costMode = DetailInfo.MODE_REFRESHING;
-            mAdapter.notifyItemChanged(detailInfo);
-        }
-        if (detailInfo.incomeMode != DetailInfo.MODE_REFRESHING) {
-            detailInfo.incomeMode = DetailInfo.MODE_REFRESHING;
-            mAdapter.notifyItemChanged(detailInfo);
-        }
-        if (detailInfo.endTime == 0) {
-            detailInfo.endTime = System.currentTimeMillis();
-        }
-        if (disposableMap.containsKey(detailInfo.tradingPair)) {
-            disposableMap.get(detailInfo.tradingPair).dispose();
-            disposableMap.remove(detailInfo.tradingPair);
-        }
-        RxHttp.get(History.historyOrders(), userInfo)
+        onRequest(detailInfo);
+        RxHttpGetSignParam param = RxHttp.get(History.historyOrders(), userInfo)
                 .addQuery("symbol", detailInfo.getRequestTradePairs())
-                .addQuery("types", "buy-limit,buy-market,buy-limit-maker")
-                .addQuery("end-time", detailInfo.endTime)
-                .asResponseList(HistoryOrderResponse.class)
+                .addQuery("types", "buy-limit,buy-market,buy-limit-maker");
+        if (detailInfo.queryID > 0) {
+            param.addQuery("from", detailInfo.queryID);
+        }
+        param.addQuery("end-time", detailInfo.endTime);
+        param.asResponseList(HistoryOrderResponse.class)
                 .retryWhen(new RetryHandler(5, 500))
                 .as(RxLife.asOnMain(self()))
                 .subscribe(new OnResponseListener<List<HistoryOrderResponse>>() {
@@ -180,9 +262,17 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
                             for (HistoryOrderResponse data : historyOrderResponses) {
                                 detailInfo.recordTrades(data.amount, data.price);
                                 continueRequest = detailInfo.amount < detailInfo.myAmount;
+                                detailInfo.queryID = data.requestID;
+                                DataManager.INSTANCE.saveLastQueryId(detailInfo.tradingPair,
+                                                                     data.createTime,
+                                                                     data.requestID);
                                 if (!continueRequest) {
                                     break;
                                 }
+                            }
+                        } else {
+                            if (detailInfo.queryID != 0) {
+                                continueRequest = false;
                             }
                         }
                         if (continueRequest) {
@@ -204,7 +294,24 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
                         mAdapter.notifyItemChanged(detailInfo);
                     }
                 });
+    }
 
+    void onRequest(DetailInfo detailInfo) {
+        if (detailInfo.costMode != DetailInfo.MODE_REFRESHING) {
+            detailInfo.costMode = DetailInfo.MODE_REFRESHING;
+            mAdapter.notifyItemChanged(detailInfo);
+        }
+        if (detailInfo.incomeMode != DetailInfo.MODE_REFRESHING) {
+            detailInfo.incomeMode = DetailInfo.MODE_REFRESHING;
+            mAdapter.notifyItemChanged(detailInfo);
+        }
+        if (detailInfo.endTime == 0) {
+            detailInfo.endTime = System.currentTimeMillis();
+        }
+        if (disposableMap.containsKey(detailInfo.tradingPair)) {
+            disposableMap.get(detailInfo.tradingPair).dispose();
+            disposableMap.remove(detailInfo.tradingPair);
+        }
     }
 
     // 获取最新价格
@@ -243,7 +350,12 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
                         if (disposableMap.get(detailInfo.tradingPair) == null) {
                             // 总价值大于2个usdt才自动更新
                             if (detailInfo.newestPrice * detailInfo.myAmount > 2) {
-                                disposableMap.put(detailInfo.tradingPair, RxHelper.loop(3000, 3000, _void -> requestNewestPrice(detailInfo)));
+                                refreshAllCostAndProfit();
+                                disposableMap.put(detailInfo.tradingPair,
+                                                  RxHelper.loop(3000,
+                                                                3000,
+                                                                _void -> requestNewestPrice(
+                                                                        detailInfo)));
                             }
                         }
                     }
@@ -308,7 +420,8 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
         @Override
         public void onBindData(DetailInfo data, int position) {
             if (data.newestPrice != 0) {
-                String formatted = String.format("%s USDT", NumberUtils.formatDecimal(data.newestPrice, 8));
+                String formatted = String.format("%s USDT",
+                                                 NumberUtils.formatDecimal(data.newestPrice, 8));
                 SpanUtil.create(String.format("%s  %s", data.getCurrencyName(), formatted))
                         .append(formatted)
                         .setTextColor(UIHelper.getColor(R.color.text_black3))
@@ -368,7 +481,7 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
         boolean isChange;
         double cacheAveragePrice;
         double newestPrice;
-        long queryID;
+        long queryID = 0;
 
         public DetailInfo() {
             amounts = new ArrayList<>();
@@ -382,9 +495,11 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
         String getCurrencyName() {
             if (currencyName != null) return currencyName;
             if (tradingPair.toLowerCase().endsWith("3l")) {
-                currencyName = String.format("%s(*3)", tradingPair.substring(0, tradingPair.length() - 2));
+                currencyName = String.format("%s(*3)",
+                                             tradingPair.substring(0, tradingPair.length() - 2));
             } else if (tradingPair.toLowerCase().endsWith("3s")) {
-                currencyName = String.format("%s(*-3)", tradingPair.substring(0, tradingPair.length() - 2));
+                currencyName = String.format("%s(*-3)",
+                                             tradingPair.substring(0, tradingPair.length() - 2));
             } else {
                 currencyName = tradingPair;
             }
@@ -443,6 +558,6 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
     }
 
     private Comparator<DetailInfo> mComparator = (o1, o2) -> -Double.compare(o1.myAmount,
-            o2.myAmount);
+                                                                             o2.myAmount);
 
 }
