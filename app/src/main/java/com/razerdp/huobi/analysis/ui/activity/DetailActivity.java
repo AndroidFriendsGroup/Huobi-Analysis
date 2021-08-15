@@ -347,10 +347,10 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
                         detailInfo.newestPrice = data.price;
                         detailInfo.incomeMode = DetailInfo.MODE_IDLE;
                         mAdapter.notifyItemChanged(detailInfo);
+                        refreshAllCostAndProfit();
                         if (disposableMap.get(detailInfo.tradingPair) == null) {
                             // 总价值大于2个usdt才自动更新
                             if (detailInfo.newestPrice * detailInfo.myAmount > 2) {
-                                refreshAllCostAndProfit();
                                 disposableMap.put(detailInfo.tradingPair,
                                                   RxHelper.loop(3000,
                                                                 3000,
