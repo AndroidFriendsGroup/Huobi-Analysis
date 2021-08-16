@@ -1,6 +1,7 @@
 package com.razerdp.huobi.analysis.ui.activity;
 
 import android.graphics.Typeface;
+import android.view.Gravity;
 import android.view.View;
 import android.widget.TextView;
 
@@ -22,6 +23,7 @@ import com.razerdp.huobi.analysis.entity.UserInfo;
 import com.razerdp.huobi.analysis.ui.ActivityLauncher;
 import com.razerdp.huobi.analysis.ui.popup.PopupAddUser;
 import com.razerdp.huobi.analysis.ui.popup.PopupConfirm;
+import com.razerdp.huobi.analysis.ui.popup.PopupSetting;
 import com.razerdp.huobi.analysis.ui.popup.PopupUpdate;
 import com.razerdp.huobi.analysis.ui.widget.DPRecyclerView;
 import com.razerdp.huobi.analysis.ui.widget.DPTextView;
@@ -56,6 +58,8 @@ public class MainActivity extends BaseActivity {
     PopupUpdate mPopupUpdate;
 
     Map<String, Disposable> disposableMap;
+
+    PopupSetting popupSetting;
 
     @Override
     public int contentViewLayoutId() {
@@ -105,7 +109,23 @@ public class MainActivity extends BaseActivity {
 
     @Override
     public void onTitleRightClick(View view) {
-        checkForUpdate();
+        if (popupSetting == null) {
+            popupSetting = new PopupSetting(this);
+            popupSetting.setMenuselectListener(new PopupSetting.OnMenuselectListener() {
+                @Override
+                public void onUpdateClicked() {
+                    checkForUpdate();
+                }
+
+                @Override
+                public void onClearCacheClicked() {
+                    DataManager.INSTANCE.clearCache();
+                    UIHelper.toast("清除缓存成功");
+                }
+            });
+            popupSetting.setPopupGravity(Gravity.RIGHT | Gravity.BOTTOM);
+        }
+        popupSetting.showPopupWindow(view);
     }
 
     void refreshAccountAssets() {
@@ -149,10 +169,10 @@ public class MainActivity extends BaseActivity {
             });
         }
         mPopupConfirm.setTips(SpanUtil.create("确定删除用户：" + userInfo.name + "吗？")
-                .append(userInfo.name)
-                .setTextColor(UIHelper.getColor(R.color.common_red_light))
-                .setTextStyle(Typeface.DEFAULT_BOLD)
-                .getSpannableStringBuilder());
+                                      .append(userInfo.name)
+                                      .setTextColor(UIHelper.getColor(R.color.common_red_light))
+                                      .setTextStyle(Typeface.DEFAULT_BOLD)
+                                      .getSpannableStringBuilder());
         mPopupConfirm.showPopupWindow();
     }
 

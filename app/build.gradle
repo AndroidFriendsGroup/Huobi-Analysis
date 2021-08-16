@@ -17,7 +17,7 @@ android {
         applicationId "com.razerdp.huobi_analysis"
         minSdkVersion 21
         targetSdkVersion 30
-        versionCode 66
+        versionCode 88
         versionName "3.0"
 
         renderscriptTargetApi 18
@@ -81,7 +81,7 @@ dependencies {
     // permission
     implementation 'pub.devrel:easypermissions:3.0.0'
     // basepopup
-    implementation 'io.github.razerdp:BasePopup:3.0.0-SNAPSHOT'
+    implementation 'io.github.razerdp:BasePopup:3.1.8'
     // rxhttp
     implementation 'com.github.liujingxing.rxhttp:rxhttp:2.6.1'
     implementation 'com.github.liujingxing.rxlife:rxlife-rxjava2:2.1.0'

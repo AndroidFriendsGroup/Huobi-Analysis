@@ -2,6 +2,7 @@ package com.razerdp.huobi.analysis.base.net.interceptor;
 
 import android.text.TextUtils;
 
+import com.razerdp.huobi.analysis.net.api.market.SupportedTrade;
 import com.razerdp.huobi.analysis.utils.gson.GsonUtil;
 import com.razerdp.huobi.analysis.utils.log.HLog;
 
@@ -44,6 +45,9 @@ public final class HttpLoggingInterceptor implements Interceptor {
 
         RequestBody requestBody = request.body();
         boolean hasRequestBody = requestBody != null;
+        if (String.valueOf(request.url()).contains(SupportedTrade.getSupportedTrades())) {
+            return chain.proceed(request);
+        }
 
         StringBuilder logBuilder = new StringBuilder('\n');
         logBuilder.append("【Send Request】-->")

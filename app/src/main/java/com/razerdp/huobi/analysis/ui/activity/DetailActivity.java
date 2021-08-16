@@ -4,10 +4,13 @@ import android.graphics.Color;
 import android.view.View;
 import android.widget.TextView;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.recyclerview.widget.LinearLayoutManager;
+
 import com.razerdp.huobi.analysis.base.baseactivity.BaseActivity;
 import com.razerdp.huobi.analysis.base.baseadapter.BaseSimpleRecyclerViewHolder;
 import com.razerdp.huobi.analysis.base.baseadapter.SimpleRecyclerViewAdapter;
-import com.razerdp.huobi.analysis.base.interfaces.SimpleCallback;
 import com.razerdp.huobi.analysis.base.manager.DataManager;
 import com.razerdp.huobi.analysis.base.manager.LiveDataBus;
 import com.razerdp.huobi.analysis.base.net.listener.OnResponseListener;
@@ -40,13 +43,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-import androidx.recyclerview.widget.LinearLayoutManager;
 import butterknife.BindView;
 import io.reactivex.disposables.Disposable;
 import rxhttp.RxHttp;
-import rxhttp.RxHttpGetSignParam;
 
 public class DetailActivity extends BaseActivity<DetailActivity.Data> {
 
@@ -93,8 +92,13 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
         double cost = 0;
         double profit = 0;
         for (DetailInfo data : mAdapter.getDatas()) {
-            cost += data.getAveragePrice() * data.myAmount;
-            profit += data.getIncome();
+            double dataCost = data.costMode == DetailInfo.MODE_IDLE ? data.getAveragePrice() * data.myAmount : 0;
+            double dataIncome = data.incomeMode == DetailInfo.MODE_IDLE ? data.getIncome() : 0;
+            if (Double.isNaN(dataCost) || Double.isNaN(dataIncome)) {
+                continue;
+            }
+            cost += dataCost;
+            profit += dataIncome;
         }
         String formattedCost = NumberUtils.getPrice(cost);
         String formattedProfit = NumberUtils.getPrice(profit);
@@ -109,12 +113,6 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
                         .getColor(R.color.common_green))
                 .setTextSize(12)
                 .into(mTvAllProfit);
-    }
-
-    @Override
-    protected void onStop() {
-        super.onStop();
-        DataManager.INSTANCE.save();
     }
 
     void updateTitle(UserInfo userInfo) {
@@ -141,14 +139,14 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
             rvContent.setAdapter(mAdapter);
         }
         for (DetailInfo data : mAdapter.getDatas()) {
-            refreshQueryId(data, new SimpleCallback<Void>() {
-                @Override
-                public void onCall(Void v) {
-                    requestCost(data);
-                }
-            });
+            requestCost(data);
         }
+    }
 
+    @Override
+    protected void onStop() {
+        super.onStop();
+        DataManager.INSTANCE.save(null);
     }
 
     List<DetailInfo> processData() {
@@ -157,12 +155,6 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
             DetailInfo detailInfo = new DetailInfo();
             detailInfo.tradingPair = entry.getKey();
             detailInfo.myAmount = entry.getValue();
-            DataManager.NewestQueryInfo newestQueryInfo = DataManager.INSTANCE.getNewestQueryInfo(
-                    detailInfo.tradingPair);
-            if (newestQueryInfo != null) {
-                detailInfo.queryID = newestQueryInfo.id;
-                detailInfo.endTime = newestQueryInfo.createTime;
-            }
             result.add(detailInfo);
         }
         Collections.sort(result, mComparator);
@@ -192,98 +184,30 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
                 });
     }
 
-    void refreshQueryId(DetailInfo detailInfo, SimpleCallback<Void> cb) {
-        if (detailInfo.queryID == 0) {
-            cb.onCall(null);
-        } else {
-            onRequest(detailInfo);
-            RxHttp.get(History.historyOrders(), userInfo)
-                    .addQuery("symbol", detailInfo.getRequestTradePairs())
-                    .addQuery("types", "buy-limit,buy-market,buy-limit-maker")
-                    .addQuery("from", detailInfo.queryID)
-                    .addQuery("end-time", detailInfo.endTime)
-                    .addQuery("direct", "prev")
-                    .asResponseList(HistoryOrderResponse.class)
-                    .retryWhen(new RetryHandler(5, 500))
-                    .as(RxLife.asOnMain(self()))
-                    .subscribe(new OnResponseListener<List<HistoryOrderResponse>>() {
-                        @Override
-                        public void onSuccess(@NonNull List<HistoryOrderResponse> historyOrderResponses) {
-                            if (!ToolUtil.isEmpty(historyOrderResponses)) {
-                                HistoryOrderResponse first = historyOrderResponses.get(0);
-                                detailInfo.queryID = first.requestID;
-                                long nextEndTime = detailInfo.endTime + TimeUtil.DAY * 2 * 1000;
-                                detailInfo.endTime = Math.min(System.currentTimeMillis(),
-                                                              nextEndTime);
-                                DataManager.INSTANCE.saveLastQueryId(detailInfo.tradingPair,
-                                                                     first.createTime,
-                                                                     first.requestID);
-                                if (nextEndTime < System.currentTimeMillis()) {
-                                    refreshQueryId(detailInfo, cb);
-                                } else {
-                                    cb.onCall(null);
-                                }
-                            } else {
-                                cb.onCall(null);
-                            }
-                        }
-
-                        @Override
-                        public void onError(String errorCode, @NotNull Throwable e) {
-                            cb.onCall(null);
-                        }
-                    });
-
-
-        }
-    }
-
     // 窗口只有48h。。。所以需要一直往前推
     void requestCost(DetailInfo detailInfo) {
         if (detailInfo == null) {
             return;
         }
         onRequest(detailInfo);
-        RxHttpGetSignParam param = RxHttp.get(History.historyOrders(), userInfo)
-                .addQuery("symbol", detailInfo.getRequestTradePairs())
-                .addQuery("types", "buy-limit,buy-market,buy-limit-maker");
-        if (detailInfo.queryID > 0) {
-            param.addQuery("from", detailInfo.queryID);
+        if (!detailInfo.ignoreCache) {
+            List<HistoryOrderResponse> cache = DataManager.INSTANCE.getCacheHistoryOrders(detailInfo.tradingPair, detailInfo.endTime);
+            if (cache != null) {
+                postOnSuccess(detailInfo, cache);
+                return;
+            }
         }
-        param.addQuery("end-time", detailInfo.endTime);
-        param.asResponseList(HistoryOrderResponse.class)
+        RxHttp.get(History.historyOrders(), userInfo)
+                .addQuery("symbol", detailInfo.getRequestTradePairs())
+                .addQuery("types", "buy-limit,buy-market,buy-limit-maker")
+                .addQuery("end-time", detailInfo.endTime)
+                .asResponseList(HistoryOrderResponse.class)
                 .retryWhen(new RetryHandler(5, 500))
                 .as(RxLife.asOnMain(self()))
                 .subscribe(new OnResponseListener<List<HistoryOrderResponse>>() {
                     @Override
                     public void onSuccess(@NotNull List<HistoryOrderResponse> historyOrderResponses) {
-                        boolean continueRequest = true;
-                        if (!ToolUtil.isEmpty(historyOrderResponses)) {
-                            for (HistoryOrderResponse data : historyOrderResponses) {
-                                detailInfo.recordTrades(data.amount, data.price);
-                                continueRequest = detailInfo.amount < detailInfo.myAmount;
-                                detailInfo.queryID = data.requestID;
-                                DataManager.INSTANCE.saveLastQueryId(detailInfo.tradingPair,
-                                                                     data.createTime,
-                                                                     data.requestID);
-                                if (!continueRequest) {
-                                    break;
-                                }
-                            }
-                        } else {
-                            if (detailInfo.queryID != 0) {
-                                continueRequest = false;
-                            }
-                        }
-                        if (continueRequest) {
-                            detailInfo.endTime -= TimeUtil.DAY * 2 * 1000;
-                            requestCost(detailInfo);
-                        } else {
-                            detailInfo.getAveragePrice();
-                            detailInfo.costMode = DetailInfo.MODE_IDLE;
-                            mAdapter.notifyItemChanged(detailInfo);
-                            requestNewestPrice(detailInfo);
-                        }
+                        postOnSuccess(detailInfo, historyOrderResponses);
                     }
 
                     @Override
@@ -294,6 +218,35 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
                         mAdapter.notifyItemChanged(detailInfo);
                     }
                 });
+    }
+
+    private void postOnSuccess(DetailInfo detailInfo, @NonNull List<HistoryOrderResponse> historyOrderResponses) {
+        boolean continueRequest = true;
+        if (!ToolUtil.isEmpty(historyOrderResponses)) {
+            for (HistoryOrderResponse data : historyOrderResponses) {
+                detailInfo.recordTrades(data);
+                continueRequest = detailInfo.amount < detailInfo.myAmount;
+                if (!continueRequest) {
+                    break;
+                }
+            }
+        }
+        // 达到查询日期的极限
+        if (detailInfo.endTime == detailInfo.overTime) {
+            continueRequest = false;
+        }
+        DataManager.INSTANCE.cacheHistoryOrders(detailInfo.tradingPair, historyOrderResponses);
+        if (continueRequest) {
+            detailInfo.endTime = Math.max(detailInfo.endTime - TimeUtil.DAY * 2 * 1000, detailInfo.overTime);
+            requestCost(detailInfo);
+        } else {
+            detailInfo.ignoreCache = false;
+            DataManager.INSTANCE.save(detailInfo.tradingPair);
+            detailInfo.getAveragePrice();
+            detailInfo.costMode = DetailInfo.MODE_IDLE;
+            mAdapter.notifyItemChanged(detailInfo);
+            requestNewestPrice(detailInfo);
+        }
     }
 
     void onRequest(DetailInfo detailInfo) {
@@ -307,6 +260,7 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
         }
         if (detailInfo.endTime == 0) {
             detailInfo.endTime = System.currentTimeMillis();
+            detailInfo.overTime = detailInfo.endTime - TimeUtil.DAY * 119 * 1000;
         }
         if (disposableMap.containsKey(detailInfo.tradingPair)) {
             disposableMap.get(detailInfo.tradingPair).dispose();
@@ -401,6 +355,7 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
                     return;
                 }
                 getData().clearInnerData();
+                getData().ignoreCache = true;
                 requestCost(getData());
             });
             layoutIncome.setOnClickListener(v -> {
@@ -469,6 +424,7 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
         String tradingPair;
         String currencyName;
         double myAmount;
+        Map<String, Void> orderIDMaps;
 
         int costMode;
         int incomeMode;
@@ -478,14 +434,16 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
         List<Double> prices;
         double amount;
         long endTime;
+        long overTime;
         boolean isChange;
         double cacheAveragePrice;
         double newestPrice;
-        long queryID = 0;
+        boolean ignoreCache;
 
         public DetailInfo() {
             amounts = new ArrayList<>();
             prices = new ArrayList<>();
+            orderIDMaps = new HashMap<>();
         }
 
         String getRequestTradePairs() {
@@ -506,10 +464,16 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
             return currencyName;
         }
 
-        public void recordTrades(double amount, double price) {
-            amounts.add(amount);
-            this.amount += amount;
-            prices.add(price);
+        public void recordTrades(HistoryOrderResponse response) {
+            if (response == null) {
+                return;
+            }
+            String orderId = String.valueOf(response.orderID);
+            if (orderIDMaps.containsKey(orderId)) return;
+            orderIDMaps.put(orderId, null);
+            amounts.add(response.amount);
+            this.amount += response.amount;
+            prices.add(response.price);
             this.isChange = true;
         }
 
@@ -517,11 +481,11 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
             amount = 0;
             amounts.clear();
             prices.clear();
+            orderIDMaps.clear();
             endTime = 0;
             isChange = true;
             cacheAveragePrice = 0;
             newestPrice = 0;
-            queryID = 0;
         }
 
         double getAveragePrice() {

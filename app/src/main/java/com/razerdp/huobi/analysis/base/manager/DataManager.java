@@ -3,6 +3,9 @@ package com.razerdp.huobi.analysis.base.manager;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.TextUtils;
+import android.util.ArrayMap;
+
+import androidx.annotation.Nullable;
 
 import com.razerdp.huobi.analysis.base.file.AppFileHelper;
 import com.razerdp.huobi.analysis.base.interfaces.SimpleCallback;
@@ -10,8 +13,11 @@ import com.razerdp.huobi.analysis.base.net.listener.OnResponseListener;
 import com.razerdp.huobi.analysis.base.net.retry.RetryHandler;
 import com.razerdp.huobi.analysis.entity.internal.SupportedTradeInfo;
 import com.razerdp.huobi.analysis.net.api.market.SupportedTrade;
+import com.razerdp.huobi.analysis.net.response.order.HistoryOrderResponse;
 import com.razerdp.huobi.analysis.utils.FileUtil;
+import com.razerdp.huobi.analysis.utils.SharedPreferencesUtils;
 import com.razerdp.huobi.analysis.utils.ToolUtil;
+import com.razerdp.huobi.analysis.utils.VersionUtil;
 import com.razerdp.huobi.analysis.utils.gson.GsonUtil;
 import com.razerdp.huobi.analysis.utils.log.HLog;
 import com.razerdp.huobi.analysis.utils.rx.RxCall;
@@ -21,11 +27,13 @@ import com.razerdp.huobi.analysis.utils.rx.RxTaskCall;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import androidx.annotation.Nullable;
 import io.reactivex.schedulers.Schedulers;
 import rxhttp.RxHttp;
 
@@ -41,19 +49,54 @@ public enum DataManager {
     Map<String, SupportedTradeInfo> supportedTradeInfoMap = new HashMap<>();
     String supportedTradeFileName = "supportedTrade";
 
-    Map<String, NewestQueryInfo> newestQueryIdData = new HashMap<>();
+    Map<String, HistoryQueryInfo> historyCache = new HashMap<>();
     final String filePath = AppFileHelper.getFilePath() + "cache";
     Handler mHandler = new android.os.Handler(Looper.getMainLooper());
-    Runnable mRunnable = this::save;
+    Runnable mRunnable = this::saveInternal;
 
-    public static class NewestQueryInfo {
-        public long id;
-        public long createTime;
+    public void clearCache() {
+        HLog.i("clearCache");
+        FileUtil.deleteFile(filePath);
+        historyCache.clear();
+    }
 
-        public NewestQueryInfo(long id, long createTime) {
-            this.id = id;
-            this.createTime = createTime;
+    public static class HistoryQueryInfo {
+        public long queryTime;
+        public List<HistoryOrderResponse> cacheList;
+        public Map<String, Void> orderIDMap;
+
+        public HistoryQueryInfo() {
+            cacheList = new ArrayList<>();
+            orderIDMap = new ArrayMap<>();
         }
+
+        public void add(List<HistoryOrderResponse> responses) {
+            if (ToolUtil.isEmpty(responses)) return;
+            if (orderIDMap == null) {
+                orderIDMap = new HashMap<>();
+            }
+            if (cacheList == null) {
+                cacheList = new ArrayList<>();
+            }
+            for (HistoryOrderResponse response : responses) {
+                String orderId = String.valueOf(response.orderID);
+                if (orderIDMap.containsKey(orderId)) {
+                    continue;
+                }
+                cacheList.add(response);
+                orderIDMap.put(orderId, null);
+            }
+        }
+
+        public void onSave() {
+            if (cacheList != null) {
+                Collections.sort(cacheList, sortCmp);
+                queryTime = cacheList.get(0).createTime;
+            }
+        }
+
+
+        private static Comparator<HistoryOrderResponse> sortCmp = (o1, o2) -> -Long.compare(o1.createTime, o2.createTime);
     }
 
     public void init(SimpleCallback<Boolean> cb) {
@@ -63,6 +106,11 @@ public enum DataManager {
             }
             updateDataInternal(null);
             return;
+        }
+        int verCode = SharedPreferencesUtils.getInt("clear_cache_ver", 0);
+        if (verCode < 88) {
+            clearCache();
+            SharedPreferencesUtils.saveInt("clear_cache_ver", VersionUtil.getAppVersionCode());
         }
         RxHelper.runOnBackground(data -> initData());
         if (FileUtil.exists(new File(AppFileHelper.getFilePath() + supportedTradeFileName))) {
@@ -150,41 +198,61 @@ public enum DataManager {
     }
 
     private void initData() {
-        Map<String, NewestQueryInfo> result =
+        Map<String, HistoryQueryInfo> result =
                 GsonUtil.INSTANCE.toHashMap(FileUtil.readFile(filePath),
                                             String.class,
-                                            NewestQueryInfo.class);
+                                            HistoryQueryInfo.class);
         if (result != null && !result.isEmpty()) {
-            newestQueryIdData.putAll(result);
+            historyCache.putAll(result);
         }
     }
 
     @Nullable
-    public NewestQueryInfo getNewestQueryInfo(String tradePairs) {
+    public List<HistoryOrderResponse> getCacheHistoryOrders(String tradePairs, long queryTime) {
         if (TextUtils.isEmpty(tradePairs)) {
             return null;
         }
-        return newestQueryIdData.get(tradePairs);
+        if (!historyCache.containsKey(tradePairs)) {
+            return null;
+        }
+        HistoryQueryInfo cache = historyCache.get(tradePairs);
+        if (cache != null && queryTime <= cache.queryTime) {
+            return cache.cacheList;
+        }
+        return null;
     }
 
-    public void saveLastQueryId(String tradePairs, long createTime, long lastQueryId) {
+    public void cacheHistoryOrders(String tradePairs, List<HistoryOrderResponse> response) {
         if (TextUtils.isEmpty(tradePairs)) {
             return;
         }
-        if (newestQueryIdData.containsKey(tradePairs)) {
-            NewestQueryInfo result = newestQueryIdData.get(tradePairs);
-            if (createTime <= result.createTime) {
-                return;
-            }
+        HistoryQueryInfo cache = null;
+        if (historyCache.containsKey(tradePairs)) {
+            cache = historyCache.get(tradePairs);
         }
-        newestQueryIdData.put(tradePairs, new NewestQueryInfo(lastQueryId, createTime));
+        if (cache == null) {
+            cache = new HistoryQueryInfo();
+            historyCache.put(tradePairs, cache);
+        }
+        cache.add(response);
         mHandler.removeCallbacks(mRunnable);
         mHandler.postDelayed(mRunnable, 3000);
     }
 
-    public void save() {
-        RxHelper.runOnBackground(data -> FileUtil.writeToFile(filePath,
-                                                              GsonUtil.INSTANCE.toString(
-                                                                      newestQueryIdData)));
+    public void save(String tradePairs) {
+        if (TextUtils.isEmpty(tradePairs)) {
+            mHandler.removeCallbacks(mRunnable);
+            mHandler.postDelayed(mRunnable, 1000);
+            return;
+        }
+        HistoryQueryInfo info = historyCache.get(tradePairs);
+        if (info == null) return;
+        info.onSave();
+        mHandler.removeCallbacks(mRunnable);
+        mHandler.postDelayed(mRunnable, 3000);
+    }
+
+    void saveInternal() {
+        RxHelper.runOnBackground(data -> FileUtil.writeToFile(filePath, GsonUtil.INSTANCE.toString(historyCache)));
     }
 }
