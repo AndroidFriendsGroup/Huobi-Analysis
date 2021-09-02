@@ -41,6 +41,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import butterknife.BindView;
@@ -49,6 +50,8 @@ import rxhttp.RxHttp;
 
 public class DetailActivity extends BaseActivity<DetailActivity.Data> {
 
+    static final String INCOME_FORMAT = "%s (%.2f%%)";
+    static final String INCOME_FORMAT_POSITIVE = "%s (+%.2f%%)";
 
     @BindView(R.id.tv_state)
     TextView mTvState;
@@ -102,6 +105,12 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
         }
         String formattedCost = NumberUtils.getPrice(cost);
         String formattedProfit = NumberUtils.getPrice(profit);
+        if (cost != 0) {
+            formattedProfit = String.format(Locale.getDefault(),
+                                            profit > 0 ? INCOME_FORMAT_POSITIVE : INCOME_FORMAT,
+                                            formattedProfit,
+                                            100 * profit / cost);
+        }
         SpanUtil.create(String.format("预估总成本（USDT）：\n%s", formattedCost))
                 .append(formattedCost)
                 .setTextColor(UIHelper.getColor(R.color.text_black2))
@@ -345,6 +354,8 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
         View layoutCost;
         @BindView(R.id.layout_income)
         View layoutIncome;
+        @BindView(R.id.tv_total_hold)
+        TextView mTvHolder;
 
 
         public Holder(@NonNull @NotNull View itemView) {
@@ -386,6 +397,8 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
                 mTvCurrency.setText(data.getCurrencyName());
             }
             mTvAmount.setText(NumberUtils.formatDecimal(data.myAmount, 4));
+            double myHolder = data.myAmount * data.getAveragePrice();
+            mTvHolder.setText(NumberUtils.formatDecimal(myHolder, 4));
             switch (data.costMode) {
                 case DetailInfo.MODE_IDLE:
                     mTvCost.setText(NumberUtils.getPrice(data.getAveragePrice()));
@@ -402,7 +415,9 @@ public class DetailActivity extends BaseActivity<DetailActivity.Data> {
                     double income = data.getIncome();
                     mTvIncome.setTextColor(income > 0 ? UIHelper.getColor(R.color.common_red) : UIHelper
                             .getColor(R.color.common_green));
-                    mTvIncome.setText(NumberUtils.getPrice(income));
+                    mTvIncome.setText(String.format(income > 0 ? INCOME_FORMAT_POSITIVE : INCOME_FORMAT,
+                                                    NumberUtils.getPrice(income),
+                                                    100 * income / myHolder));
                     break;
                 case DetailInfo.MODE_REFRESHING:
                     mTvIncome.setTextColor(UIHelper.getColor(R.color.text_black2));
